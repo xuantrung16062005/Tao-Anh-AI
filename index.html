@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Verdant Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    color-scheme: light;
+    --bg: #f2f9f4;
+    --bg-soft: #e7f6ec;
+    --surface: #ffffff;
+    --surface-2: #f2faf5;
+    --surface-3: #eaf7ef;
+    --ink: #10241a;
+    --ink-muted: #5c7268;
+    --ink-faint: #90a89b;
+    --primary-700: #0f7a3d;
+    --primary-600: #16a34a;
+    --primary-500: #22c55e;
+    --primary-400: #4ade80;
+    --primary-200: #b8f0cd;
+    --border: rgba(15, 122, 61, 0.16);
+    --border-strong: rgba(15, 122, 61, 0.30);
+    --glow: #34d399;
+    --shadow: 0 8px 30px -12px rgba(16, 36, 26, 0.25);
+    --shadow-sm: 0 2px 10px -4px rgba(16, 36, 26, 0.18);
+    --radius: 14px;
+    --radius-sm: 9px;
+    --font-display: 'Sora', ui-sans-serif, system-ui, sans-serif;
+    --font-body: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    --grad-primary: linear-gradient(135deg, var(--primary-400) 0%, var(--primary-600) 55%, var(--primary-700) 100%);
+    --grad-hero: linear-gradient(120deg, var(--primary-600) 0%, var(--primary-400) 45%, #ffffff 100%);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      color-scheme: dark;
+      --bg: #071811; --bg-soft: #0a2016; --surface: #0c2117; --surface-2: #0f291c; --surface-3: #123120;
+      --ink: #eafaf1; --ink-muted: #9fc4ae; --ink-faint: #628270;
+      --primary-700: #1c8f4d; --primary-600: #22c55e; --primary-500: #34d399; --primary-400: #5eead4; --primary-200: #1d4a34;
+      --border: rgba(52, 211, 153, 0.22); --border-strong: rgba(52, 211, 153, 0.38); --glow: #22c55e;
+      --shadow: 0 10px 34px -12px rgba(0, 0, 0, 0.55); --shadow-sm: 0 4px 16px -6px rgba(0, 0, 0, 0.5);
+      --grad-primary: linear-gradient(135deg, var(--primary-400) 0%, var(--primary-600) 55%, var(--primary-700) 100%);
+      --grad-hero: linear-gradient(120deg, var(--primary-500) 0%, var(--primary-400) 45%, #eafaf1 100%);
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --bg: #071811; --bg-soft: #0a2016; --surface: #0c2117; --surface-2: #0f291c; --surface-3: #123120;
+    --ink: #eafaf1; --ink-muted: #9fc4ae; --ink-faint: #628270;
+    --primary-700: #1c8f4d; --primary-600: #22c55e; --primary-500: #34d399; --primary-400: #5eead4; --primary-200: #1d4a34;
+    --border: rgba(52, 211, 153, 0.22); --border-strong: rgba(52, 211, 153, 0.38); --glow: #22c55e;
+    --shadow: 0 10px 34px -12px rgba(0, 0, 0, 0.55); --shadow-sm: 0 4px 16px -6px rgba(0, 0, 0, 0.5);
+    --grad-primary: linear-gradient(135deg, var(--primary-400) 0%, var(--primary-600) 55%, var(--primary-700) 100%);
+    --grad-hero: linear-gradient(120deg, var(--primary-500) 0%, var(--primary-400) 45%, #eafaf1 100%);
+  }
+
+  *{ box-sizing: border-box; }
+  html, body{ height: 100%; }
+  body{
+    margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased; overflow: hidden;
+  }
+  h1,h2,h3, .display{ font-family: var(--font-display); text-wrap: balance; }
+  ::selection{ background: var(--primary-400); color: #04140c; }
+
+  .scroll-thin{ scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+  .scroll-thin::-webkit-scrollbar{ width: 8px; height: 8px; }
+  .scroll-thin::-webkit-scrollbar-track{ background: transparent; }
+  .scroll-thin::-webkit-scrollbar-thumb{
+    background: linear-gradient(var(--primary-500), var(--primary-700));
+    border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; opacity: .5;
+  }
+  .scroll-thin::-webkit-scrollbar-thumb:hover{ background: linear-gradient(var(--primary-400), var(--primary-600)); background-clip: padding-box; }
+  .scroll-thin::-webkit-scrollbar-button{ display: none; width: 0; height: 0; }
+  .scroll-thin::-webkit-scrollbar-corner{ background: transparent; }
+
+  #appShell{ height: 100%; overflow-y: auto; overflow-x: hidden; overscroll-behavior-y: contain; }
+
+  header#appHeader{
+    position: sticky; top: 0; z-index: 40;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 14px clamp(16px, 4vw, 32px);
+    background: var(--surface); border-bottom: 1px solid transparent;
+    transition: background-color .35s ease, backdrop-filter .35s ease, border-color .35s ease, box-shadow .35s ease;
+  }
+  header#appHeader.is-scrolled{
+    background: color-mix(in srgb, var(--surface) 62%, transparent);
+    backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%);
+    border-bottom-color: var(--border); box-shadow: var(--shadow-sm);
+  }
+  .brand{ display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .brand-mark{
+    width: 34px; height: 34px; border-radius: 10px; flex: none; background: var(--grad-primary);
+    box-shadow: 0 3px 12px -3px rgba(22,163,74,.55); display: flex; align-items: center; justify-content: center; font-size: 17px;
+  }
+  .brand-name{
+    font-family: var(--font-display); font-weight: 700; font-size: 17px; letter-spacing: .2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    background: var(--grad-primary); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .header-actions{ display: flex; align-items: center; gap: 8px; }
+
+  .btn{
+    font-family: var(--font-body); font-weight: 600; font-size: 13.5px;
+    border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--ink);
+    padding: 9px 14px; border-radius: var(--radius-sm); display: inline-flex; align-items: center; gap: 7px;
+    cursor: pointer; transition: background .25s ease, color .25s ease, box-shadow .25s ease, transform .12s ease, border-color .25s ease;
+    white-space: nowrap;
+  }
+  .btn:hover{ background-image: var(--grad-primary); border-color: transparent; color: #fff; box-shadow: 0 6px 18px -6px rgba(22,163,74,.55); }
+  .btn:active{ transform: translateY(1px); }
+  .btn:focus-visible{ outline: 2px solid var(--primary-500); outline-offset: 2px; }
+  .btn.primary{ background-image: var(--grad-primary); color: #fff; border-color: transparent; box-shadow: 0 6px 16px -6px rgba(22,163,74,.5); }
+  .btn.primary:hover{ filter: brightness(1.06); }
+  .btn.ghost{ background: transparent; border-color: var(--border); }
+  .btn.small{ padding: 6px 10px; font-size: 12px; }
+  .btn.icon-only{ padding: 9px; }
+  .btn:disabled{ opacity:.5; cursor:not-allowed; pointer-events:none; }
+  kbd{
+    font-family: var(--font-mono); font-size: 10.5px; padding: 1px 5px; border-radius: 5px;
+    border: 1px solid var(--border-strong); background: var(--surface-3); color: var(--ink-muted);
+  }
+  .btn:hover kbd{ background: rgba(255,255,255,.22); color: #fff; border-color: rgba(255,255,255,.4); }
+
+  nav#tabStrip{ display: flex; gap: 4px; padding: 0 clamp(16px, 4vw, 32px); border-bottom: 1px solid var(--border); overflow-x: auto; background: var(--bg); }
+  .tab-btn{
+    font-family: var(--font-body); font-weight: 600; font-size: 13.5px; color: var(--ink-muted); background: transparent;
+    border: none; padding: 12px 14px 11px; cursor: pointer; white-space: nowrap; border-bottom: 2.5px solid transparent;
+    margin-bottom: -1px; display: flex; align-items: center; gap: 7px; transition: color .2s ease;
+  }
+  .tab-btn:hover{ color: var(--ink); }
+  .tab-btn.active{ color: var(--primary-700); border-bottom-color: var(--primary-500); }
+  :root[data-theme="dark"] .tab-btn.active{ color: var(--primary-400); }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .tab-btn.active{ color: var(--primary-400); } }
+
+  main#canvas{ position: relative; min-height: calc(100% - 108px); padding: clamp(28px, 6vw, 64px) clamp(16px, 4vw, 32px) 100px; overflow: hidden; }
+  .glow{ position: absolute; border-radius: 50%; filter: blur(70px); pointer-events: none; opacity: .35; z-index: 0; }
+  .glow.g1{ width: 480px; height: 480px; top: -180px; left: -120px; background: var(--glow); }
+  .glow.g2{ width: 380px; height: 380px; bottom: -160px; right: -100px; background: var(--primary-400); opacity: .28; }
+
+  .hero{ position: relative; z-index: 1; max-width: 720px; margin: 0 auto 40px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .hero-eyebrow{ font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint); }
+  #projectNameInput{
+    width: 100%; font-family: var(--font-display); font-weight: 800; text-transform: uppercase; text-align: center;
+    font-size: clamp(22px, 5vw, 38px); letter-spacing: .01em; border: none; background: transparent; outline: none;
+    color: var(--ink-faint); padding: 6px 8px;
+  }
+  #projectNameInput::placeholder{ color: var(--ink-faint); opacity: .55; font-weight: 700; -webkit-text-fill-color: var(--ink-faint); }
+  #projectNameInput.has-value{
+    background-image: var(--grad-hero); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent;
+  }
+  .slug-preview{ font-family: var(--font-mono); font-size: 12.5px; color: var(--ink-muted); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center; }
+  .slug-preview code{ background: var(--surface-3); border: 1px solid var(--border); padding: 2px 8px; border-radius: 6px; }
+  .hero-toolbar{ display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 6px; }
+
+  .panel-wrap{ position: relative; z-index: 1; max-width: 1080px; margin: 0 auto; }
+  .panel{ display: none; flex-direction: column; gap: 16px; }
+  .panel.active{ display: flex; }
+  .panel-head{ display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .panel-head h2{ margin: 0; font-size: 18px; font-weight: 700; }
+  .panel-head p{ margin: 2px 0 0; color: var(--ink-muted); font-size: 13px; }
+
+  .card{ background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); }
+  .workspace-card{ padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+  textarea.workspace-input{
+    width: 100%; min-height: 160px; resize: vertical; font-family: var(--font-body); font-size: 14px; line-height: 1.55;
+    border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--ink);
+    padding: 12px 14px; outline: none; transition: border-color .2s ease, box-shadow .2s ease;
+  }
+  textarea.workspace-input:focus{ border-color: var(--primary-500); box-shadow: 0 0 0 3px rgba(34,197,94,.18); }
+  .hint-note{
+    font-size: 12.5px; color: var(--ink-faint); display: flex; gap: 8px; align-items: flex-start;
+    background: var(--surface-2); border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); padding: 10px 12px;
+  }
+
+  .img-grid{ display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .img-card{ position: relative; aspect-ratio: 1; border-radius: var(--radius-sm); overflow: hidden; background: var(--grad-hero); border: 1px solid var(--border); }
+  .img-card .example-tag{ position: absolute; top: 8px; left: 8px; font-size: 10px; font-weight: 700; background: rgba(0,0,0,.45); color: #fff; padding: 2px 7px; border-radius: 999px; letter-spacing: .04em; }
+  .img-card .img-actions{ position: absolute; inset: auto 0 0 0; display: flex; justify-content: center; gap: 6px; padding: 8px; background: linear-gradient(to top, rgba(0,0,0,.55), transparent); opacity: 0; transition: opacity .2s ease; }
+  .img-card:hover .img-actions{ opacity: 1; }
+  .img-actions button{ width: 28px; height: 28px; border-radius: 8px; border: none; cursor: pointer; background: rgba(255,255,255,.92); color: #10241a; font-size: 13px; display: flex; align-items: center; justify-content: center; transition: transform .15s ease, background .15s ease; }
+  .img-actions button:hover{ transform: translateY(-1px); background: #fff; }
+
+  .voice-demo{ display: flex; align-items: center; gap: 14px; padding: 16px; }
+  .play-btn{ width: 46px; height: 46px; border-radius: 50%; border: none; cursor: pointer; flex: none; background-image: var(--grad-primary); color: #fff; font-size: 16px; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-sm); }
+  .waveform{ flex: 1; height: 34px; display: flex; align-items: center; gap: 2px; }
+  .waveform span{ width: 3px; border-radius: 2px; background: var(--primary-400); opacity: .55; }
+
+  .fixed-ui{ position: fixed; z-index: 100; }
+  #zoomChip{
+    top: 16px; right: 20px; display: flex; align-items: center; gap: 2px; background: var(--surface); border: 1px solid var(--border-strong);
+    border-radius: 999px; box-shadow: var(--shadow-sm); padding: 3px; font-family: var(--font-mono); font-size: 12px; color: var(--ink-muted);
+    opacity: 0; transform: translateY(-6px); pointer-events: none; transition: opacity .2s ease, transform .2s ease;
+  }
+  #zoomChip.visible{ opacity: 1; transform: translateY(0); pointer-events: auto; }
+  #zoomChip button{ border: none; background: transparent; color: inherit; font: inherit; cursor: pointer; padding: 5px 10px; border-radius: 999px; display: flex; align-items: center; gap: 4px; }
+  #zoomChip button:hover{ background-image: var(--grad-primary); color: #fff; }
+
+  #helpBubble{
+    bottom: 22px; right: 22px; width: 52px; height: 52px; border-radius: 50%; background-image: var(--grad-primary);
+    border: none; color: #fff; font-size: 20px; cursor: pointer; box-shadow: 0 10px 24px -8px rgba(22,163,74,.65);
+    display: flex; align-items: center; justify-content: center; transition: transform .18s ease, box-shadow .18s ease;
+  }
+  #helpBubble:hover{ transform: scale(1.06) translateY(-2px); box-shadow: 0 14px 30px -8px rgba(22,163,74,.75); }
+
+  #toast{
+    left: 50%; bottom: 26px; transform: translate(-50%, 12px); background: var(--ink); color: var(--bg); font-size: 13px; font-weight: 500;
+    padding: 10px 16px; border-radius: 999px; box-shadow: var(--shadow); opacity: 0; transition: opacity .25s ease, transform .25s ease;
+    pointer-events: none; max-width: 90vw; text-align: center;
+  }
+  #toast.visible{ opacity: 1; transform: translate(-50%, 0); }
+
+  .modal-overlay{ position: fixed; inset: 0; z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(6, 20, 13, .5); backdrop-filter: blur(3px); }
+  .modal-overlay.open{ display: flex; }
+  .modal{ width: 100%; max-width: 420px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 22px; display: flex; flex-direction: column; gap: 14px; }
+  .modal h3{ margin: 0; font-size: 16px; }
+  .modal-field label{ font-size: 12.5px; font-weight: 600; color: var(--ink-muted); display: block; margin-bottom: 6px; }
+  .key-row{ display: flex; gap: 8px; }
+  .key-row input{ flex: 1; min-width: 0; font-family: var(--font-mono); font-size: 13px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--ink); padding: 10px 12px; outline: none; }
+  .key-row input:focus{ border-color: var(--primary-500); box-shadow: 0 0 0 3px rgba(34,197,94,.18); }
+  .modal-note{ font-size: 12px; color: var(--ink-faint); line-height: 1.5; }
+  .modal-actions{ display: flex; justify-content: flex-end; gap: 8px; }
+  .key-status{ font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .key-status .dot{ width: 7px; height: 7px; border-radius: 50%; background: var(--ink-faint); }
+  .key-status.set .dot{ background: var(--primary-500); }
+
+  /* ---------------- characters tab ---------------- */
+  .char-list{ display: flex; flex-direction: column; gap: 14px; }
+  .char-card{ padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .char-card-head{ display: flex; align-items: center; gap: 10px; }
+  .star-btn{
+    flex: none; width: 34px; height: 34px; border-radius: 9px; border: 1px solid var(--border-strong);
+    background: var(--surface-2); color: var(--ink-faint); font-size: 15px; cursor: pointer; display:flex; align-items:center; justify-content:center;
+    transition: all .2s ease;
+  }
+  .star-btn.is-default{ background-image: var(--grad-primary); border-color: transparent; color: #fff; box-shadow: 0 4px 14px -5px rgba(22,163,74,.6); }
+  .char-fields{ display: grid; grid-template-columns: 1fr 1.6fr; gap: 10px; }
+  @media (max-width: 640px){ .char-fields{ grid-template-columns: 1fr; } }
+  .field-input, .field-textarea{
+    width: 100%; font-family: var(--font-body); font-size: 13.5px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: var(--surface-2); color: var(--ink); padding: 9px 12px; outline: none; transition: border-color .2s ease, box-shadow .2s ease;
+  }
+  .field-input:focus, .field-textarea:focus{ border-color: var(--primary-500); box-shadow: 0 0 0 3px rgba(34,197,94,.18); }
+  .field-textarea{ min-height: 56px; resize: vertical; font-family: var(--font-body); }
+  .char-images{ display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .char-thumb{ width: 64px; height: 64px; border-radius: 10px; overflow: hidden; position: relative; border: 1px solid var(--border); flex: none; }
+  .char-thumb img{ width: 100%; height: 100%; object-fit: cover; display:block; }
+  .char-thumb .remove-thumb{
+    position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border-radius: 50%; background: rgba(0,0,0,.6);
+    color: #fff; border: none; font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height:1;
+  }
+  .dropzone{
+    flex: 1; min-width: 140px; border: 1.5px dashed var(--border-strong); border-radius: var(--radius-sm); padding: 12px;
+    text-align: center; font-size: 12px; color: var(--ink-muted); cursor: pointer; transition: border-color .2s ease, background .2s ease;
+  }
+  .dropzone.dragover{ border-color: var(--primary-500); background: var(--surface-2); color: var(--primary-700); }
+  .char-card-foot{ display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .char-count{ font-size: 11.5px; color: var(--ink-faint); font-family: var(--font-mono); }
+
+  /* ---------------- scenes table ---------------- */
+  .scene-toolbar{ display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .scene-list-wrap{ overflow-x: auto; padding-bottom: 4px; }
+  .scene-list{ display: flex; flex-direction: column; gap: 10px; }
+  .scene-table-head{
+    display: grid; grid-template-columns: 68px minmax(110px,1fr) minmax(130px,1.1fr) minmax(120px,1fr) minmax(150px,1.3fr) minmax(140px,0.95fr) 150px;
+    gap: 10px; min-width: 1020px; padding: 0 12px 6px; font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; color: var(--ink-faint);
+  }
+  .scene-table-head > div{ display: flex; align-items: center; gap: 4px; }
+  .scene-row{
+    display: grid; grid-template-columns: 68px minmax(110px,1fr) minmax(130px,1.1fr) minmax(120px,1fr) minmax(150px,1.3fr) minmax(140px,0.95fr) 150px;
+    gap: 12px; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 12px; box-shadow: var(--shadow-sm); min-width: 1020px;
+  }
+  @media (max-width: 700px){
+    .scene-list-wrap{ overflow-x: visible; }
+    .scene-table-head{ display: none; }
+    .scene-row{ grid-template-columns: 1fr; min-width: 0; }
+    .scene-row > .scene-cell{ width: 100%; }
+    .scene-cell::before{ content: attr(data-label); display:block; font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color: var(--ink-faint); margin-bottom:4px; }
+  }
+  .scene-cell{ display: flex; align-items: center; min-width: 0; height: 100%; }
+  .scene-num-cell{ flex-direction: column; gap: 6px; justify-content: center; }
+  .scene-label-input{ width: 62px; text-align: center; font-family: var(--font-mono); font-weight: 700; padding: 7px 4px; }
+  .help-btn{
+    width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--border-strong); background: var(--surface-3);
+    color: var(--ink-muted); font-size: 10px; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex: none;
+  }
+  .help-btn:hover{ background-image: var(--grad-primary); color: #fff; border-color: transparent; }
+  .row-del-btn{ width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--ink-muted); font-size: 11px; cursor: pointer; display:flex; align-items:center; justify-content:center; }
+  .row-del-btn:hover{ background-image: var(--grad-primary); color: #fff; border-color: transparent; }
+  .cell-textarea{ width: 100%; min-height: 54px; font-size: 13px; line-height: 1.45; font-family: var(--font-body); border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); color: var(--ink); padding: 8px 10px; outline: none; resize: vertical; }
+  .cell-textarea:focus{ border-color: var(--primary-500); box-shadow: 0 0 0 3px rgba(34,197,94,.18); }
+  .char-select-cell{ flex-direction: column; align-items: flex-start; gap: 6px; }
+  .char-select-trigger{ width: 100%; justify-content: space-between; font-size: 12.5px; }
+  .char-pills{ display: flex; flex-wrap: wrap; gap: 4px; }
+  .char-pill{ font-size: 10.5px; background: var(--surface-3); border: 1px solid var(--border); padding: 2px 8px; border-radius: 999px; color: var(--ink); white-space:nowrap; }
+  .gen-cell{ flex-direction: column; gap: 6px; align-items: center; justify-content: center; }
+  .gen-thumb{ width: 92px; height: 92px; border-radius: 10px; overflow: hidden; position: relative; background: var(--surface-2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; flex: none; }
+  .gen-thumb img{ width: 100%; height: 100%; object-fit: cover; cursor: pointer; display:block; }
+  .gen-thumb .empty-hint{ font-size: 10.5px; color: var(--ink-faint); text-align: center; padding: 4px; }
+  .gen-thumb .err-hint{ font-size: 10px; color: #dc2626; text-align:center; padding:4px; }
+  .spinner{ width: 22px; height: 22px; border-radius: 50%; border: 3px solid var(--border-strong); border-top-color: var(--primary-500); animation: spin .8s linear infinite; }
+  @keyframes spin{ to{ transform: rotate(360deg); } }
+  .gen-actions{ display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; }
+  .gen-actions button{ width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--ink); font-size: 11px; cursor: pointer; display:flex; align-items:center; justify-content:center; }
+  .gen-actions button:hover{ background-image: var(--grad-primary); color:#fff; border-color: transparent; }
+
+  .char-popover{
+    position: fixed; z-index: 260; width: 240px; max-height: 280px; overflow-y: auto;
+    background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(16px) saturate(150%); -webkit-backdrop-filter: blur(16px) saturate(150%);
+    border: 1px solid var(--border-strong); border-radius: var(--radius-sm); box-shadow: var(--shadow); padding: 8px; display: none; flex-direction: column; gap: 2px;
+  }
+  .char-popover.open{ display: flex; }
+  .char-popover label{ display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 7px 8px; border-radius: 7px; cursor: pointer; }
+  .char-popover label:hover{ background: var(--surface-2); }
+  .char-popover .empty{ font-size: 12px; color: var(--ink-faint); padding: 8px; text-align:center; }
+
+  .lightbox-overlay{ position: fixed; inset: 0; z-index: 300; display: none; align-items: center; justify-content: center; padding: 16px; background: rgba(4,12,8,.72); backdrop-filter: blur(4px); }
+  .lightbox-overlay.open{ display: flex; }
+  .lightbox{ width: min(1040px, 96vw); max-height: 92vh; background: var(--surface); border-radius: var(--radius); overflow: hidden; display: grid; grid-template-columns: 1.6fr 1fr; box-shadow: var(--shadow); }
+  @media (max-width: 760px){ .lightbox{ grid-template-columns: 1fr; max-height: 94vh; overflow-y: auto; } }
+  .lightbox-stage{ position: relative; background: #05130c; display: flex; align-items: center; justify-content: center; min-height: 320px; cursor: pointer; }
+  .lightbox-stage img{ max-width: 100%; max-height: 78vh; object-fit: contain; }
+  .lightbox-nav-btn{ position: absolute; top: 50%; transform: translateY(-50%); width: 38px; height: 38px; border-radius: 50%; border: none; background: rgba(255,255,255,.15); color: #fff; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
+  .lightbox-nav-btn:hover{ background: rgba(255,255,255,.3); }
+  .lightbox-nav-btn.left{ left: 12px; } .lightbox-nav-btn.right{ right: 12px; }
+  .lightbox-close{ position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; border-radius: 50%; border: none; background: rgba(255,255,255,.15); color: #fff; font-size: 15px; cursor: pointer; z-index: 2; }
+  .lightbox-close:hover{ background: rgba(255,255,255,.3); }
+  .lightbox-side{ padding: 18px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+  .lightbox-side h4{ margin:0; font-size: 12px; text-transform:uppercase; letter-spacing:.06em; color: var(--ink-faint); }
+  .lightbox-script{ font-size: 13px; line-height: 1.5; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; white-space: pre-wrap; max-height: 140px; overflow-y:auto; }
+  .lightbox-refine textarea{ width:100%; min-height: 70px; font-family: var(--font-body); font-size: 13px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--ink); padding: 9px 11px; outline:none; resize: vertical; }
+  .lightbox-refine textarea:focus{ border-color: var(--primary-500); box-shadow: 0 0 0 3px rgba(34,197,94,.18); }
+  .lightbox-actions{ display: flex; gap: 8px; flex-wrap: wrap; }
+
+  @media (max-width: 480px){
+    .brand-name{ font-size: 15px; }
+    .header-actions .btn span.label{ display: none; }
+    #helpBubble{ width: 46px; height: 46px; bottom: 16px; right: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="appShell" class="scroll-thin">
+  <header id="appHeader">
+    <div class="brand">
+      <div class="brand-mark">🌿</div>
+      <div class="brand-name" id="brandName">Verdant Studio</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn ghost" id="btnOpen" title="Mở dự án (Ctrl+O)"><span>📂</span><span class="label">Mở</span><kbd>Ctrl+O</kbd></button>
+      <button class="btn primary" id="btnSave" title="Lưu dự án (Ctrl+S)"><span>💾</span><span class="label">Lưu</span><kbd>Ctrl+S</kbd></button>
+      <button class="btn ghost icon-only" id="btnApiKey" title="Quản lý API key">🔑</button>
+    </div>
+  </header>
+
+  <nav id="tabStrip">
+    <button class="tab-btn active" data-tab="characters">🧑‍🎨 Nhân vật</button>
+    <button class="tab-btn" data-tab="script">📝 Kịch bản &amp; Prompt</button>
+    <button class="tab-btn" data-tab="voice">🎙️ Giọng nói</button>
+    <button class="tab-btn" data-tab="image">🖼️ Tạo ảnh</button>
+  </nav>
+
+  <main id="canvas">
+    <div class="glow g1"></div>
+    <div class="glow g2"></div>
+
+    <section class="hero">
+      <div class="hero-eyebrow">Dự án hiện tại</div>
+      <input id="projectNameInput" placeholder="Nhập tên dự án của bạn…" autocomplete="off" spellcheck="false" maxlength="120">
+      <div class="slug-preview">Tên file khi lưu: <code id="slugPreview">du-an-moi.json</code></div>
+      <div class="hero-toolbar">
+        <button class="btn ghost" id="btnUndo" title="Hoàn tác (Ctrl+Z)">↶ Hoàn tác</button>
+        <button class="btn ghost" id="btnRedo" title="Làm lại (Ctrl+Shift+Z)">↷ Làm lại</button>
+      </div>
+    </section>
+
+    <div class="panel-wrap">
+
+      <section class="panel active" data-panel="characters">
+        <div class="panel-head">
+          <div>
+            <h2>Nhân vật</h2>
+            <p>Upload ảnh mẫu (1–5 ảnh/nhân vật) để đồng nhất ngoại hình trong mọi ảnh có nhân vật này. Nhấn ★ để chọn nhân vật mặc định.</p>
+          </div>
+          <button class="btn primary" id="btnAddChar">+ Thêm nhân vật</button>
+        </div>
+        <div class="char-list" id="charList"></div>
+      </section>
+
+      <section class="panel" data-panel="script">
+        <div class="panel-head">
+          <div>
+            <h2>Kịch bản &amp; Prompt</h2>
+            <p>Nhập từng phân đoạn thủ công hoặc nhập nhanh từ file Excel. Chọn nhân vật cho phân cảnh nào cần đồng nhất ngoại hình.</p>
+          </div>
+        </div>
+
+        <div class="card workspace-card">
+          <label style="font-size:12px;font-weight:700;color:var(--ink-muted);">🎨 Phong cách chung (áp dụng cho mọi phân cảnh khi tạo ảnh)</label>
+          <textarea class="workspace-input" id="stylePromptInput" placeholder="Ví dụ: phong cách hoạt hình 2D màu pastel, nét vẽ mềm mại, ánh sáng điện ảnh ấm áp…" style="min-height:70px"></textarea>
+        </div>
+
+        <div class="card workspace-card">
+          <div class="scene-toolbar">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn ghost" id="btnAddScene">+ Thêm phân đoạn</button>
+              <button class="btn ghost" id="btnImportExcel">📥 Nhập từ Excel</button>
+            </div>
+            <button class="btn primary" id="btnGenAll">✨ Tạo ảnh hàng loạt</button>
+          </div>
+
+          <div class="scene-list-wrap scroll-thin">
+            <div class="scene-table-head">
+              <div>Scene <button class="help-btn" data-help="scene" title="Giải thích">?</button></div>
+              <div>Ngôn ngữ 1</div>
+              <div>Tiếng Việt</div>
+              <div>Tên Prompt <button class="help-btn" data-help="promptname" title="Giải thích">?</button></div>
+              <div>Mô tả bối cảnh</div>
+              <div>Chọn nhân vật</div>
+              <div>Ảnh</div>
+            </div>
+            <div class="scene-list" id="sceneList"></div>
+          </div>
+
+          <div class="hint-note">⚙️ File Excel: cột A=Scene, B=Ngôn ngữ 1, C=Tiếng Việt, D=Tên Prompt, E=Mô tả bối cảnh (hàng đầu tiên là tiêu đề, sẽ được bỏ qua). Scene không có chữ "C" (vd 1, 33) mặc định KHÔNG chọn nhân vật; Scene có chữ "C" (vd C2, C5) tự động chọn nhân vật mặc định — có thể chỉnh tay. Prompt tạo ảnh cuối cùng = Phong cách chung + Mô tả bối cảnh của phân cảnh đó.</div>
+        </div>
+      </section>
+
+      <section class="panel" data-panel="voice">
+        <div class="panel-head"><div><h2>Giọng nói</h2><p>Chuyển kịch bản thành giọng đọc tự động.</p></div></div>
+        <div class="card workspace-card">
+          <textarea class="workspace-input" data-tab-store="voice" placeholder="Dán kịch bản cần đọc vào đây…" style="min-height:110px"></textarea>
+          <div class="card voice-demo" style="border-style:dashed;">
+            <button class="play-btn" id="btnPlayDemo">▶</button>
+            <div class="waveform" id="waveformDemo"></div>
+            <button class="btn ghost icon-only" title="Tải file âm thanh">⬇</button>
+          </div>
+          <div class="hint-note">⚙️ Bản demo dạng sóng âm minh hoạ — tính năng tạo giọng nói thật bằng API sẽ được thêm sau.</div>
+        </div>
+      </section>
+
+      <section class="panel" data-panel="image">
+        <div class="panel-head">
+          <div><h2>Tạo ảnh</h2><p>Mỗi ảnh luôn có nút xem full, tạo lại và tải xuống.</p></div>
+          <button class="btn ghost" id="btnDownloadAll">⬇ Tải tất cả</button>
+        </div>
+        <div class="card workspace-card">
+          <textarea class="workspace-input" data-tab-store="image" placeholder="Mô tả hình ảnh muốn tạo…" style="min-height:80px"></textarea>
+          <div class="img-grid" id="imgGrid"></div>
+          <div class="hint-note">⚙️ Lưới ảnh minh hoạ cho quy ước nút bấm — tính năng tạo ảnh thật theo phân cảnh &amp; nhân vật nằm ở tab Kịch bản &amp; Prompt.</div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<div id="zoomChip" class="fixed-ui">
+  <button id="zoomOutBtn" title="Thu nhỏ">–</button>
+  <button id="zoomResetBtn" title="Về 100%"><span id="zoomLabel">100%</span></button>
+  <button id="zoomInBtn" title="Phóng to">+</button>
+</div>
+<button id="helpBubble" class="fixed-ui" title="Trợ giúp">✦</button>
+<div id="toast" class="fixed-ui" role="status"></div>
+
+<input type="file" id="fileOpenInput" accept="application/json,.json" hidden>
+<input type="file" id="charFileInput" accept="image/*" multiple hidden>
+<input type="file" id="excelFileInput" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" hidden>
+
+<div class="modal-overlay" id="apiKeyOverlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="apiKeyTitle">
+    <h3 id="apiKeyTitle">Quản lý API key</h3>
+    <div class="modal-field">
+      <label for="geminiKeyInput">Gemini API key</label>
+      <div class="key-row">
+        <input id="geminiKeyInput" type="password" placeholder="Dán API key Gemini của bạn…" autocomplete="off" spellcheck="false">
+        <button class="btn ghost icon-only" id="toggleKeyVisibility" title="Hiện/ẩn key">👁</button>
+      </div>
+    </div>
+    <div class="key-status" id="keyStatus"><span class="dot"></span><span id="keyStatusText">Chưa có API key.</span></div>
+    <div class="modal-note">Key dùng cho toàn bộ chức năng tạo ảnh của App (tab Kịch bản &amp; Prompt, model Nano Banana). Key được lưu riêng trên trình duyệt này, không gửi cho ai khác ngoài Google khi tạo ảnh.</div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="btnClearKey">Xoá key</button>
+      <button class="btn ghost" id="btnCancelKey">Đóng</button>
+      <button class="btn primary" id="btnSaveKey">Lưu key</button>
+    </div>
+  </div>
+</div>
+
+<div class="char-popover scroll-thin" id="charPopover"></div>
+
+<div class="lightbox-overlay" id="lightboxOverlay">
+  <div class="lightbox">
+    <div class="lightbox-stage" id="lightboxStage">
+      <button class="lightbox-close" id="lightboxCloseBtn">✕</button>
+      <button class="lightbox-nav-btn left" id="lightboxPrevBtn">‹</button>
+      <img id="lightboxImg" alt="Ảnh phân cảnh">
+      <button class="lightbox-nav-btn right" id="lightboxNextBtn">›</button>
+    </div>
+    <div class="lightbox-side scroll-thin">
+      <div>
+        <h4>Kịch bản phân cảnh</h4>
+        <div class="lightbox-script" id="lightboxScript">—</div>
+      </div>
+      <div class="lightbox-refine">
+        <h4>Tinh chỉnh ảnh này</h4>
+        <textarea id="lightboxRefineInput" placeholder="Ví dụ: đổi ánh sáng thành hoàng hôn, thêm mưa nhẹ…"></textarea>
+      </div>
+      <div class="lightbox-actions">
+        <button class="btn primary" id="lightboxRefineBtn">🪄 Tạo lại tại đây</button>
+        <button class="btn ghost" id="lightboxRegenBtn">↻ Tạo lại từ đầu</button>
+        <button class="btn ghost" id="lightboxDownloadBtn">⬇ Tải ảnh</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var APP_NAME = "Verdant Studio";
+  var KEY_STORAGE = 'vs_gemini_api_key';
+  var GEMINI_MODEL = 'gemini-3.1-flash-image'; // "Nano Banana 2" — đổi sang 'gemini-3-pro-image' nếu cần chất lượng cao hơn
+  var GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1/models/' + GEMINI_MODEL + ':generateContent';
+
+  // ---------------- helpers ----------------
+  function uid(prefix){ return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+  function slugify(str){
+    if(!str) return "du-an-moi";
+    var s = str.replace(/đ/g,'d').replace(/Đ/g,'D');
+    s = s.normalize('NFD').replace(/[̀-ͯ]/g,'');
+    s = s.toLowerCase();
+    s = s.replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+    return s || "du-an-moi";
+  }
+  function sanitizeFileLabel(label, fallbackIdx){
+    var s = String(label == null ? '' : label).trim();
+    if(!s) s = String(fallbackIdx);
+    s = s.replace(/[\\/:*?"<>|]+/g,'-').replace(/\s+/g,'_');
+    return s || String(fallbackIdx);
+  }
+  function isCharacterLabel(label){ return /^c/i.test(String(label||'').trim()); }
+  function escapeHtml(str){
+    return String(str==null?'':str).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  function dataUrlToBlob(dataUrl){
+    var arr = dataUrl.split(','); var m = /:(.*?);/.exec(arr[0]); var mime = m ? m[1] : 'image/png';
+    var bstr = atob(arr[1]); var n = bstr.length; var u8 = new Uint8Array(n);
+    while(n--){ u8[n] = bstr.charCodeAt(n); }
+    return new Blob([u8], { type: mime });
+  }
+  function triggerDownload(blob, filename){
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+  }
+
+  var toastEl = document.getElementById('toast');
+  var toastTimer = null;
+  function toast(msg, isError){
+    toastEl.textContent = msg;
+    toastEl.classList.add('visible');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ toastEl.classList.remove('visible'); }, isError ? 6000 : 2800);
+  }
+
+  try { var savedTheme = localStorage.getItem('vs_theme'); if(savedTheme) document.documentElement.setAttribute('data-theme', savedTheme); } catch(e){}
+
+  // ---------------- state ----------------
+  var state = {
+    projectName: "",
+    activeTab: "characters",
+    tabs: { voice: "", image: "" },
+    characters: [],
+    scenes: [],
+    stylePrompt: ""
+  };
+
+  function newCharacter(){
+    return { id: uid('c'), name: "", description: "", images: [], isDefault: state.characters.length === 0 };
+  }
+  function nextSceneLabel(){ return String(state.scenes.length + 1); }
+  function newScene(labelOverride){
+    var label = labelOverride != null ? labelOverride : nextSceneLabel();
+    var def = state.characters.find(function(c){ return c.isDefault; });
+    var giveDefault = isCharacterLabel(label) && def;
+    return { id: uid('s'), sceneLabel: label, lang1: "", vi: "", promptName: "", setting: "", characterIds: giveDefault ? [def.id] : [], image: null, status: 'idle', errorMsg: "" };
+  }
+
+  var projectNameInput = document.getElementById('projectNameInput');
+  var slugPreview = document.getElementById('slugPreview');
+  var stylePromptInput = document.getElementById('stylePromptInput');
+
+  // ================= CHARACTERS =================
+  var charList = document.getElementById('charList');
+  var charFileInput = document.getElementById('charFileInput');
+  var pendingCharId = null;
+
+  function renderCharacters(){
+    if(!state.characters.length){
+      charList.innerHTML = '<div class="hint-note">Chưa có nhân vật nào. Bấm "+ Thêm nhân vật" để bắt đầu upload ảnh mẫu.</div>';
+      return;
+    }
+    charList.innerHTML = state.characters.map(function(c){
+      var thumbs = c.images.map(function(im){
+        return '<div class="char-thumb" data-char="'+c.id+'" data-img="'+im.id+'">' +
+          '<img src="'+im.dataUrl+'" alt="ảnh nhân vật">' +
+          '<button class="remove-thumb" data-action="remove-img" data-char="'+c.id+'" data-img="'+im.id+'" title="Xoá ảnh">✕</button>' +
+        '</div>';
+      }).join('');
+      return '<div class="card char-card" data-char="'+c.id+'">' +
+        '<div class="char-card-head">' +
+          '<button class="star-btn'+(c.isDefault?' is-default':'')+'" data-action="set-default" data-char="'+c.id+'" title="Đặt làm nhân vật mặc định">★</button>' +
+          '<input class="field-input" style="font-weight:700;flex:1" data-action="name" data-char="'+c.id+'" placeholder="Tên nhân vật" value="'+escapeHtml(c.name)+'">' +
+          '<button class="row-del-btn" data-action="del-char" data-char="'+c.id+'" title="Xoá nhân vật">✕</button>' +
+        '</div>' +
+        '<div class="char-fields">' +
+          '<div>' +
+            '<label style="font-size:11.5px;color:var(--ink-faint);display:block;margin-bottom:4px;">Ảnh mẫu (tối đa 5)</label>' +
+            '<div class="char-images">' + thumbs +
+              (c.images.length < 5 ? '<div class="dropzone" data-action="dropzone" data-char="'+c.id+'">📎 Kéo ảnh vào đây<br>hoặc bấm để chọn</div>' : '') +
+            '</div>' +
+          '</div>' +
+          '<div>' +
+            '<label style="font-size:11.5px;color:var(--ink-faint);display:block;margin-bottom:4px;">Đặc điểm cần đồng nhất</label>' +
+            '<textarea class="field-textarea" data-action="desc" data-char="'+c.id+'" placeholder="Ví dụ: luôn mặc áo khoác da đen, tóc xoăn đỏ, quần rách gối…">'+escapeHtml(c.description)+'</textarea>' +
+          '</div>' +
+        '</div>' +
+        '<div class="char-card-foot"><span class="char-count">'+c.images.length+'/5 ảnh'+(c.isDefault?' · Mặc định':'')+'</span></div>' +
+      '</div>';
+    }).join('');
+  }
+
+  function addImagesToCharacter(charId, files){
+    var c = state.characters.find(function(x){ return x.id === charId; });
+    if(!c) return;
+    var room = 5 - c.images.length;
+    if(room <= 0){ toast('Nhân vật này đã đủ 5 ảnh'); return; }
+    var picked = Array.from(files).filter(function(f){ return f.type.indexOf('image/') === 0; }).slice(0, room);
+    if(!picked.length) return;
+    var loaded = 0;
+    picked.forEach(function(file){
+      var reader = new FileReader();
+      reader.onload = function(){
+        c.images.push({ id: uid('img'), dataUrl: String(reader.result), mime: file.type || 'image/png' });
+        loaded++;
+        if(loaded === picked.length){ renderCharacters(); scheduleHistoryPush(); }
+      };
+      reader.readAsDataURL(file);
+    });
+    if(files.length > room) toast('Chỉ nhận thêm được '+room+' ảnh (tối đa 5 ảnh/nhân vật)');
+  }
+
+  charList.addEventListener('click', function(e){
+    var btn = e.target.closest('[data-action]');
+    if(!btn) return;
+    var action = btn.getAttribute('data-action');
+    var charId = btn.getAttribute('data-char');
+    if(action === 'set-default'){
+      state.characters.forEach(function(c){ c.isDefault = (c.id === charId); });
+      renderCharacters(); scheduleHistoryPush();
+    } else if(action === 'del-char'){
+      if(!confirm('Xoá nhân vật này? Các phân cảnh đang dùng nhân vật này sẽ bỏ chọn nhân vật đó.')) return;
+      state.characters = state.characters.filter(function(c){ return c.id !== charId; });
+      state.scenes.forEach(function(s){ s.characterIds = s.characterIds.filter(function(id){ return id !== charId; }); });
+      renderCharacters(); renderScenes(); scheduleHistoryPush();
+    } else if(action === 'remove-img'){
+      var imgId = btn.getAttribute('data-img');
+      var c = state.characters.find(function(x){ return x.id === charId; });
+      if(c){ c.images = c.images.filter(function(im){ return im.id !== imgId; }); renderCharacters(); scheduleHistoryPush(); }
+    } else if(action === 'dropzone'){
+      pendingCharId = charId;
+      charFileInput.click();
+    }
+  });
+  charList.addEventListener('input', function(e){
+    var el = e.target.closest('[data-action="name"],[data-action="desc"]');
+    if(!el) return;
+    var c = state.characters.find(function(x){ return x.id === el.getAttribute('data-char'); });
+    if(!c) return;
+    if(el.getAttribute('data-action') === 'name') c.name = el.value; else c.description = el.value;
+    renderScenes();
+    scheduleHistoryPush();
+  });
+  charList.addEventListener('dragover', function(e){
+    var dz = e.target.closest('.dropzone'); if(!dz) return;
+    e.preventDefault(); dz.classList.add('dragover');
+  });
+  charList.addEventListener('dragleave', function(e){
+    var dz = e.target.closest('.dropzone'); if(!dz) return;
+    dz.classList.remove('dragover');
+  });
+  charList.addEventListener('drop', function(e){
+    var dz = e.target.closest('.dropzone'); if(!dz) return;
+    e.preventDefault(); dz.classList.remove('dragover');
+    addImagesToCharacter(dz.getAttribute('data-char'), e.dataTransfer.files);
+  });
+  charFileInput.addEventListener('change', function(e){
+    if(pendingCharId && e.target.files && e.target.files.length){ addImagesToCharacter(pendingCharId, e.target.files); }
+    pendingCharId = null; e.target.value = "";
+  });
+  document.getElementById('btnAddChar').addEventListener('click', function(){
+    state.characters.push(newCharacter());
+    renderCharacters(); scheduleHistoryPush();
+  });
+
+  // ================= SCENES / SCRIPT TABLE =================
+  var sceneList = document.getElementById('sceneList');
+  var charPopover = document.getElementById('charPopover');
+  var popoverSceneId = null;
+
+  function charName(id){ var c = state.characters.find(function(x){ return x.id === id; }); return c ? (c.name || '(chưa đặt tên)') : null; }
+
+  function renderScenes(){
+    if(!state.scenes.length){
+      sceneList.innerHTML = '<div class="hint-note">Chưa có phân đoạn nào. Bấm "+ Thêm phân đoạn" hoặc "📥 Nhập từ Excel" để bắt đầu.</div>';
+      return;
+    }
+    sceneList.innerHTML = state.scenes.map(function(s, idx){
+      var pills = s.characterIds.map(charName).filter(Boolean).map(function(n){ return '<span class="char-pill">'+escapeHtml(n)+'</span>'; }).join('');
+      var genInner;
+      if(s.status === 'loading'){
+        genInner = '<div class="spinner"></div>';
+      } else if(s.image){
+        genInner = '<img src="'+s.image.dataUrl+'" data-action="view" data-scene="'+s.id+'" alt="Ảnh phân cảnh '+escapeHtml(s.sceneLabel)+'">';
+      } else if(s.status === 'error'){
+        genInner = '<div class="err-hint" title="'+escapeHtml(s.errorMsg||'')+'">Lỗi tạo ảnh<br>(rê chuột xem chi tiết)</div>';
+      } else {
+        genInner = '<div class="empty-hint">Chưa có ảnh</div>';
+      }
+      var actions = '<div class="gen-actions">' +
+        '<button data-action="gen" data-scene="'+s.id+'" title="Tạo ảnh" '+(s.status==='loading'?'disabled':'')+'>🎨</button>' +
+        (s.image ? '<button data-action="view" data-scene="'+s.id+'" title="Xem full">⤢</button><button data-action="download" data-scene="'+s.id+'" title="Tải ảnh">⬇</button>' : '') +
+      '</div>';
+      return '<div class="scene-row" data-scene="'+s.id+'">' +
+        '<div class="scene-cell scene-num-cell" data-label="Scene">' +
+          '<input class="field-input scene-label-input" data-action="label" data-scene="'+s.id+'" value="'+escapeHtml(s.sceneLabel)+'">' +
+          '<button class="row-del-btn" data-action="del-scene" data-scene="'+s.id+'" title="Xoá phân đoạn">✕</button>' +
+        '</div>' +
+        '<div class="scene-cell" data-label="Ngôn ngữ 1"><textarea class="cell-textarea" data-action="lang1" data-scene="'+s.id+'" placeholder="Ngôn ngữ 1…">'+escapeHtml(s.lang1)+'</textarea></div>' +
+        '<div class="scene-cell" data-label="Tiếng Việt"><textarea class="cell-textarea" data-action="vi" data-scene="'+s.id+'" placeholder="Tiếng Việt…">'+escapeHtml(s.vi)+'</textarea></div>' +
+        '<div class="scene-cell" data-label="Tên Prompt"><textarea class="cell-textarea" data-action="promptName" data-scene="'+s.id+'" placeholder="Tóm tắt phân cảnh…">'+escapeHtml(s.promptName)+'</textarea></div>' +
+        '<div class="scene-cell" data-label="Mô tả bối cảnh"><textarea class="cell-textarea" data-action="setting" data-scene="'+s.id+'" placeholder="Mô tả bối cảnh dùng để vẽ ảnh…">'+escapeHtml(s.setting)+'</textarea></div>' +
+        '<div class="scene-cell char-select-cell" data-label="Chọn nhân vật">' +
+          '<button class="btn ghost small char-select-trigger" data-action="pick-char" data-scene="'+s.id+'">'+(pills?'Sửa':'Chọn nhân vật (None)')+' <span>▾</span></button>' +
+          '<div class="char-pills">'+(pills || '<span style="font-size:11px;color:var(--ink-faint)">None</span>')+'</div>' +
+        '</div>' +
+        '<div class="scene-cell gen-cell" data-label="Ảnh">' +
+          '<div class="gen-thumb">'+genInner+'</div>' + actions +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  sceneList.addEventListener('input', function(e){
+    var el = e.target.closest('[data-action]');
+    if(!el) return;
+    var fieldMap = { label: 'sceneLabel', lang1: 'lang1', vi: 'vi', promptName: 'promptName', setting: 'setting' };
+    var action = el.getAttribute('data-action');
+    if(!fieldMap[action]) return;
+    var s = state.scenes.find(function(x){ return x.id === el.getAttribute('data-scene'); });
+    if(!s) return;
+    s[fieldMap[action]] = el.value;
+    scheduleHistoryPush();
+  });
+
+  sceneList.addEventListener('click', function(e){
+    var btn = e.target.closest('[data-action]');
+    if(!btn) return;
+    var action = btn.getAttribute('data-action');
+    var sceneId = btn.getAttribute('data-scene');
+    if(action === 'del-scene'){
+      if(!confirm('Xoá phân đoạn này?')) return;
+      state.scenes = state.scenes.filter(function(s){ return s.id !== sceneId; });
+      renderScenes(); scheduleHistoryPush();
+    } else if(action === 'pick-char'){
+      openCharPopover(sceneId, btn);
+    } else if(action === 'gen'){
+      generateSceneImage(sceneId);
+    } else if(action === 'view'){
+      openLightbox(sceneId);
+    } else if(action === 'download'){
+      downloadSceneImage(sceneId);
+    }
+  });
+
+  function openCharPopover(sceneId, anchorEl){
+    popoverSceneId = sceneId;
+    var s = state.scenes.find(function(x){ return x.id === sceneId; });
+    if(!state.characters.length){
+      charPopover.innerHTML = '<div class="empty">Chưa có nhân vật nào.<br>Thêm ở tab "Nhân vật" trước.</div>';
+    } else {
+      charPopover.innerHTML = state.characters.map(function(c){
+        var checked = s.characterIds.indexOf(c.id) > -1 ? 'checked' : '';
+        return '<label><input type="checkbox" value="'+c.id+'" '+checked+'> '+escapeHtml(c.name || '(chưa đặt tên)')+(c.isDefault?' ★':'')+'</label>';
+      }).join('');
+    }
+    var r = anchorEl.getBoundingClientRect();
+    charPopover.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 256)) + 'px';
+    charPopover.style.top = (r.bottom + 6) + 'px';
+    charPopover.classList.add('open');
+  }
+  function closeCharPopover(){ charPopover.classList.remove('open'); popoverSceneId = null; }
+  charPopover.addEventListener('change', function(e){
+    if(e.target.type !== 'checkbox' || !popoverSceneId) return;
+    var s = state.scenes.find(function(x){ return x.id === popoverSceneId; });
+    if(!s) return;
+    var id = e.target.value;
+    if(e.target.checked){ if(s.characterIds.indexOf(id) === -1) s.characterIds.push(id); }
+    else { s.characterIds = s.characterIds.filter(function(x){ return x !== id; }); }
+    renderScenes();
+    scheduleHistoryPush();
+  });
+  document.addEventListener('click', function(e){
+    if(charPopover.classList.contains('open') && !charPopover.contains(e.target) && !e.target.closest('[data-action="pick-char"]')){
+      closeCharPopover();
+    }
+  });
+
+  document.getElementById('btnAddScene').addEventListener('click', function(){
+    state.scenes.push(newScene());
+    renderScenes(); scheduleHistoryPush();
+  });
+
+  document.querySelectorAll('.help-btn').forEach(function(b){
+    b.addEventListener('click', function(){
+      var msgs = {
+        scene: 'Số thứ tự phân cảnh. Khi tải các file ảnh được tạo ra từ phân cảnh này, ảnh sẽ được đặt tên giống tên của ô trong cột này.',
+        promptname: 'Tóm tắt những gì xảy ra trong phân cảnh này để check tính chính xác của ảnh tạo ra.'
+      };
+      toast(msgs[b.getAttribute('data-help')] || '');
+    });
+  });
+
+  // ---------------- Excel import ----------------
+  document.getElementById('btnImportExcel').addEventListener('click', function(){
+    document.getElementById('excelFileInput').click();
+  });
+  document.getElementById('excelFileInput').addEventListener('change', async function(e){
+    var file = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if(!file) return;
+    if(typeof XLSX === 'undefined'){ toast('Không tải được thư viện đọc Excel (cần kết nối mạng)'); return; }
+    try {
+      var buf = await file.arrayBuffer();
+      var wb = XLSX.read(buf, { type: 'array' });
+      var sheet = wb.Sheets[wb.SheetNames[0]];
+      var rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+      var dataRows = rows.slice(1).filter(function(r){ return r.some(function(cell){ return String(cell).trim() !== ''; }); });
+      if(!dataRows.length){ toast('Không tìm thấy dữ liệu (đã bỏ qua hàng tiêu đề)'); return; }
+      var defChar = state.characters.find(function(c){ return c.isDefault; });
+      var imported = dataRows.map(function(r, i){
+        var label = String(r[0] != null ? r[0] : '').trim() || String(state.scenes.length + i + 1);
+        var giveDefault = isCharacterLabel(label) && defChar;
+        return {
+          id: uid('s'), sceneLabel: label,
+          lang1: String(r[1] != null ? r[1] : ''),
+          vi: String(r[2] != null ? r[2] : ''),
+          promptName: String(r[3] != null ? r[3] : ''),
+          setting: String(r[4] != null ? r[4] : ''),
+          characterIds: giveDefault ? [defChar.id] : [],
+          image: null, status: 'idle', errorMsg: ''
+        };
+      });
+      var replace = state.scenes.length > 0
+        ? confirm('Đã có '+state.scenes.length+' phân đoạn.\nOK = THAY THẾ toàn bộ bằng '+imported.length+' phân đoạn từ file Excel.\nCancel = THÊM NỐI TIẾP vào cuối danh sách.')
+        : true;
+      state.scenes = replace ? imported : state.scenes.concat(imported);
+      renderScenes(); scheduleHistoryPush();
+      toast('Đã nhập '+imported.length+' phân cảnh từ Excel'+(replace?' (thay thế)':' (thêm nối tiếp)'));
+    } catch(err){
+      console.error(err);
+      toast('Lỗi đọc file Excel: '+(err && err.message ? err.message : 'không xác định'));
+    }
+  });
+
+  // ---------------- Gemini (Nano Banana) client ----------------
+  function getApiKey(){ try { return (localStorage.getItem(KEY_STORAGE) || '').trim(); } catch(e){ return ''; } }
+
+  function dataUrlToInline(dataUrl){
+    var m = /^data:([^;]+);base64,(.*)$/.exec(dataUrl || '');
+    return m ? { mime_type: m[1], data: m[2] } : null;
+  }
+  function buildCharacterParts(characterIds){
+    var parts = [];
+    characterIds.map(function(id){ return state.characters.find(function(c){ return c.id === id; }); })
+      .filter(Boolean).forEach(function(c){
+        var line = 'Nhân vật "' + (c.name || '(chưa đặt tên)') + '"' + (c.description ? ' — đặc điểm cần giữ nguyên xuyên suốt: ' + c.description : '') + '. Vẽ đúng ngoại hình nhân vật này theo (các) ảnh tham chiếu sau:';
+        parts.push({ text: line });
+        c.images.slice(0, 3).forEach(function(im){
+          var inline = dataUrlToInline(im.dataUrl);
+          if(inline) parts.push({ inline_data: inline });
+        });
+      });
+    return parts;
+  }
+
+  async function callGemini(parts){
+    var apiKey = getApiKey();
+    if(!apiKey) throw { code: 'no_key', message: 'Chưa có API key' };
+    var body = { contents: [{ parts: parts }], generationConfig: { responseModalities: ['TEXT', 'IMAGE'] } };
+    var res = await fetch(GEMINI_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify(body)
+    });
+    var json = await res.json().catch(function(){ return {}; });
+    if(!res.ok){ throw new Error((json && json.error && json.error.message) || ('Lỗi HTTP ' + res.status)); }
+    var cand = json.candidates && json.candidates[0];
+    var p = (cand && cand.content && cand.content.parts) || [];
+    var imgPart = null;
+    for(var i = 0; i < p.length; i++){ var part = p[i].inline_data || p[i].inlineData; if(part){ imgPart = part; break; } }
+    if(!imgPart) throw new Error('Không nhận được ảnh từ Gemini (prompt có thể đã bị từ chối).');
+    var mime = imgPart.mime_type || imgPart.mimeType || 'image/png';
+    return { dataUrl: 'data:' + mime + ';base64,' + imgPart.data, mime: mime };
+  }
+
+  async function generateSceneImage(sceneId, opts){
+    opts = opts || {};
+    var s = state.scenes.find(function(x){ return x.id === sceneId; });
+    if(!s) return;
+    var settingText = (s.setting && s.setting.trim()) || (s.promptName && s.promptName.trim()) || (s.vi && s.vi.trim()) || '';
+    if(!settingText && !opts.editPrompt){ toast('Hãy nhập Mô tả bối cảnh (hoặc Tên Prompt / Tiếng Việt) trước khi tạo ảnh'); return; }
+    if(!getApiKey()){ toast('Chưa có API key Gemini — bấm 🔑 để nhập'); openKeyModal(); return; }
+
+    s.status = 'loading'; renderScenes(); if(lightboxState.open && lightboxState.sceneId === sceneId) renderLightbox();
+
+    try {
+      var instruction = 'Vẽ một hình minh hoạ điện ảnh, chất lượng cao cho phân cảnh sau. CHỈ vẽ hình ảnh, tuyệt đối không thêm chữ, watermark hay chú thích nào trong ảnh.';
+      var styleText = (state.stylePrompt || '').trim();
+      var finalPrompt = (styleText ? ('Phong cách chung cần đồng nhất: ' + styleText + '\n') : '') + 'Mô tả bối cảnh phân cảnh: ' + settingText;
+      var parts = [{ text: instruction + '\n\n' + finalPrompt }];
+      parts = parts.concat(buildCharacterParts(s.characterIds));
+      if(s.characterIds.length === 0){
+        var idx = state.scenes.findIndex(function(x){ return x.id === sceneId; });
+        var prev = state.scenes[idx - 1];
+        if(prev && prev.image){
+          parts.push({ text: 'Đây là ảnh của phân cảnh liền trước để tham khảo, giữ đồng nhất phong cách vẽ; nếu mô tả bối cảnh trùng với phân cảnh này thì vẽ đúng cùng khung cảnh, cảnh vật:' });
+          parts.push({ inline_data: dataUrlToInline(prev.image.dataUrl) });
+        }
+      }
+      if(opts.editPrompt && s.image){
+        parts.push({ text: 'Chỉnh sửa ảnh vừa tạo theo yêu cầu sau, giữ nguyên bố cục và nhân vật trừ khi được yêu cầu đổi khác: ' + opts.editPrompt });
+        parts.push({ inline_data: dataUrlToInline(s.image.dataUrl) });
+      }
+      var result = await callGemini(parts);
+      s.image = result; s.status = 'done'; s.errorMsg = '';
+    } catch(err){
+      console.error(err);
+      s.status = 'error'; s.errorMsg = (err && err.message) || 'Lỗi không xác định';
+      toast('Lỗi tạo ảnh: ' + s.errorMsg, true);
+    }
+    renderScenes();
+    if(lightboxState.open && lightboxState.sceneId === sceneId) renderLightbox();
+  }
+
+  document.getElementById('btnGenAll').addEventListener('click', async function(){
+    if(!state.scenes.length){ toast('Chưa có phân đoạn nào'); return; }
+    if(!getApiKey()){ toast('Chưa có API key Gemini — bấm 🔑 để nhập'); openKeyModal(); return; }
+    this.disabled = true;
+    for(var i = 0; i < state.scenes.length; i++){ await generateSceneImage(state.scenes[i].id); }
+    this.disabled = false;
+    toast('Đã tạo xong toàn bộ ảnh trong danh sách phân cảnh');
+  });
+
+  function downloadSceneImage(sceneId){
+    var idx = state.scenes.findIndex(function(s){ return s.id === sceneId; });
+    var s = state.scenes[idx];
+    if(!s || !s.image) return;
+    var ext = (s.image.mime.split('/')[1] || 'png').replace('jpeg','jpg');
+    triggerDownload(dataUrlToBlob(s.image.dataUrl), sanitizeFileLabel(s.sceneLabel, idx + 1) + '.' + ext);
+  }
+  document.getElementById('btnDownloadAll').addEventListener('click', downloadAllZip);
+  async function downloadAllZip(){
+    var items = state.scenes.map(function(s, i){ return { idx: i + 1, s: s }; }).filter(function(o){ return o.s.image; });
+    if(!items.length){ toast('Chưa có ảnh nào để tải'); return; }
+    if(typeof JSZip === 'undefined'){ toast('Không tải được thư viện nén file (cần kết nối mạng)'); return; }
+    var zip = new JSZip();
+    var used = {};
+    items.forEach(function(o){
+      var ext = (o.s.image.mime.split('/')[1] || 'png').replace('jpeg','jpg');
+      var base = sanitizeFileLabel(o.s.sceneLabel, o.idx);
+      var name = base, n = 2;
+      while(used[name + '.' + ext]){ name = base + '_' + n; n++; }
+      used[name + '.' + ext] = true;
+      zip.file(name + '.' + ext, o.s.image.dataUrl.split(',')[1], { base64: true });
+    });
+    var blob = await zip.generateAsync({ type: 'blob' });
+    triggerDownload(blob, slugify(state.projectName) + '-anh.zip');
+    toast('Đã tải file zip gồm ' + items.length + ' ảnh');
+  }
+
+  // ---------------- lightbox ----------------
+  var lightboxOverlay = document.getElementById('lightboxOverlay');
+  var lightboxImg = document.getElementById('lightboxImg');
+  var lightboxScript = document.getElementById('lightboxScript');
+  var lightboxRefineInput = document.getElementById('lightboxRefineInput');
+  var lightboxState = { open: false, sceneId: null };
+
+  function scenesWithImage(){ return state.scenes.filter(function(s){ return s.image; }); }
+  function openLightbox(sceneId){
+    var s = state.scenes.find(function(x){ return x.id === sceneId; });
+    if(!s || !s.image) return;
+    lightboxState.open = true; lightboxState.sceneId = sceneId;
+    lightboxRefineInput.value = '';
+    lightboxOverlay.classList.add('open');
+    renderLightbox();
+  }
+  function closeLightbox(){ lightboxState.open = false; lightboxOverlay.classList.remove('open'); }
+  function renderLightbox(){
+    var s = state.scenes.find(function(x){ return x.id === lightboxState.sceneId; });
+    if(!s || !s.image){ closeLightbox(); return; }
+    lightboxImg.src = s.image.dataUrl;
+    lightboxScript.textContent = (s.vi && s.vi.trim()) || (s.lang1 && s.lang1.trim()) || (s.setting && s.setting.trim()) || (s.promptName && s.promptName.trim()) || '(chưa có nội dung)';
+  }
+  function navLightbox(dir){
+    var list = scenesWithImage();
+    if(list.length < 2) return;
+    var i = list.findIndex(function(s){ return s.id === lightboxState.sceneId; });
+    var next = list[(i + dir + list.length) % list.length];
+    lightboxState.sceneId = next.id;
+    lightboxRefineInput.value = '';
+    renderLightbox();
+  }
+  document.getElementById('lightboxCloseBtn').addEventListener('click', closeLightbox);
+  document.getElementById('lightboxPrevBtn').addEventListener('click', function(e){ e.stopPropagation(); navLightbox(-1); });
+  document.getElementById('lightboxNextBtn').addEventListener('click', function(e){ e.stopPropagation(); navLightbox(1); });
+  document.getElementById('lightboxStage').addEventListener('click', function(e){
+    if(e.target.closest('.lightbox-nav-btn') || e.target.closest('.lightbox-close')) return;
+    var rect = this.getBoundingClientRect();
+    navLightbox((e.clientX - rect.left) < rect.width / 2 ? -1 : 1);
+  });
+  lightboxOverlay.addEventListener('click', function(e){ if(e.target === lightboxOverlay) closeLightbox(); });
+  document.getElementById('lightboxDownloadBtn').addEventListener('click', function(){ if(lightboxState.sceneId) downloadSceneImage(lightboxState.sceneId); });
+  document.getElementById('lightboxRegenBtn').addEventListener('click', function(){ if(lightboxState.sceneId) generateSceneImage(lightboxState.sceneId); });
+  document.getElementById('lightboxRefineBtn').addEventListener('click', function(){
+    var v = lightboxRefineInput.value.trim();
+    if(!v){ toast('Nhập nội dung muốn tinh chỉnh trước'); return; }
+    if(lightboxState.sceneId) generateSceneImage(lightboxState.sceneId, { editPrompt: v });
+  });
+  window.addEventListener('keydown', function(e){
+    if(!lightboxState.open) return;
+    if(e.key === 'Escape') closeLightbox();
+    else if(e.key === 'ArrowLeft') navLightbox(-1);
+    else if(e.key === 'ArrowRight') navLightbox(1);
+  });
+
+  // ================= shared: state render / tabs / history / save-open / zoom / apikey =================
+  function renderState(){
+    projectNameInput.value = state.projectName;
+    projectNameInput.classList.toggle('has-value', state.projectName.trim().length > 0);
+    slugPreview.textContent = slugify(state.projectName) + '.json';
+    stylePromptInput.value = state.stylePrompt || '';
+    document.querySelectorAll('[data-tab-store]').forEach(function(el){ el.value = state.tabs[el.getAttribute('data-tab-store')] || ""; });
+    renderCharacters();
+    renderScenes();
+    setActiveTab(state.activeTab, true);
+  }
+
+  var tabButtons = document.querySelectorAll('.tab-btn');
+  var panels = document.querySelectorAll('.panel');
+  function setActiveTab(name, silent){
+    state.activeTab = name;
+    tabButtons.forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-tab') === name); });
+    panels.forEach(function(p){ p.classList.toggle('active', p.getAttribute('data-panel') === name); });
+    if(!silent) pushHistory();
+  }
+  tabButtons.forEach(function(btn){ btn.addEventListener('click', function(){ setActiveTab(btn.getAttribute('data-tab')); }); });
+
+  document.querySelectorAll('[data-tab-store]').forEach(function(el){
+    el.addEventListener('input', function(){ state.tabs[el.getAttribute('data-tab-store')] = el.value; scheduleHistoryPush(); });
+  });
+  projectNameInput.addEventListener('input', function(){
+    state.projectName = projectNameInput.value;
+    projectNameInput.classList.toggle('has-value', state.projectName.trim().length > 0);
+    slugPreview.textContent = slugify(state.projectName) + '.json';
+    scheduleHistoryPush();
+  });
+  stylePromptInput.addEventListener('input', function(){
+    state.stylePrompt = stylePromptInput.value;
+    scheduleHistoryPush();
+  });
+
+  // ---- undo / redo ----
+  var history = [];
+  var historyIndex = 0;
+  var historyDebounce = null;
+  var restoring = false;
+  function snapshot(){ return JSON.parse(JSON.stringify(state)); }
+  function pushHistory(){
+    if(restoring) return;
+    var current = snapshot();
+    if(history.length && JSON.stringify(history[historyIndex]) === JSON.stringify(current)) return;
+    history = history.slice(0, historyIndex + 1);
+    history.push(current);
+    if(history.length > 40) history.shift();
+    historyIndex = history.length - 1;
+  }
+  function scheduleHistoryPush(){ clearTimeout(historyDebounce); historyDebounce = setTimeout(pushHistory, 450); }
+  function applySnapshot(snap){ restoring = true; state = JSON.parse(JSON.stringify(snap)); renderState(); restoring = false; }
+  function undo(){
+    clearTimeout(historyDebounce); pushHistory();
+    if(historyIndex <= 0){ toast('Không còn thao tác để hoàn tác'); return; }
+    historyIndex -= 1; applySnapshot(history[historyIndex]); toast('Đã hoàn tác');
+  }
+  function redo(){
+    if(historyIndex >= history.length - 1){ toast('Không còn thao tác để làm lại'); return; }
+    historyIndex += 1; applySnapshot(history[historyIndex]); toast('Đã làm lại');
+  }
+  document.getElementById('btnUndo').addEventListener('click', undo);
+  document.getElementById('btnRedo').addEventListener('click', redo);
+
+  // ---- save / open project ----
+  async function saveProject(){
+    var data = JSON.stringify({ app: APP_NAME, version: 3, savedAt: new Date().toISOString(), project: state }, null, 2);
+    var filename = slugify(state.projectName) + '.json';
+    if(window.showSaveFilePicker){
+      try {
+        var handle = await window.showSaveFilePicker({ suggestedName: filename, types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }] });
+        var writable = await handle.createWritable();
+        await writable.write(data);
+        await writable.close();
+        toast('Đã lưu ' + filename);
+        return;
+      } catch(err){
+        if(err && err.name === 'AbortError'){ toast('Đã huỷ lưu file'); return; }
+        console.warn('showSaveFilePicker failed, fallback to download', err);
+      }
+    }
+    triggerDownload(new Blob([data], { type: 'application/json' }), filename);
+    toast('Đã tải xuống ' + filename);
+  }
+  function openProject(){ document.getElementById('fileOpenInput').click(); }
+  document.getElementById('fileOpenInput').addEventListener('change', function(e){
+    var file = e.target.files && e.target.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      try {
+        var parsed = JSON.parse(String(reader.result));
+        var proj = parsed && parsed.project ? parsed.project : parsed;
+        state.projectName = proj.projectName || "";
+        state.tabs = Object.assign({ voice: "", image: "" }, proj.tabs || {});
+        state.characters = Array.isArray(proj.characters) ? proj.characters : [];
+        state.stylePrompt = proj.stylePrompt || "";
+        state.scenes = Array.isArray(proj.scenes) ? proj.scenes.map(function(s, i){
+          return {
+            id: s.id || uid('s'),
+            sceneLabel: s.sceneLabel != null ? s.sceneLabel : String(i + 1),
+            lang1: s.lang1 != null ? s.lang1 : "",
+            vi: s.vi != null ? s.vi : (s.script || ""),
+            promptName: s.promptName != null ? s.promptName : "",
+            setting: s.setting != null ? s.setting : (s.description || ""),
+            characterIds: s.characterIds || [],
+            image: s.image || null,
+            status: s.image ? 'done' : 'idle',
+            errorMsg: ""
+          };
+        }) : [];
+        state.activeTab = proj.activeTab || "characters";
+        renderState();
+        history = [snapshot()]; historyIndex = 0;
+        toast('Đã mở dự án: ' + (state.projectName || file.name));
+      } catch(err){ toast('File không hợp lệ, không thể mở'); }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  });
+  document.getElementById('btnSave').addEventListener('click', saveProject);
+  document.getElementById('btnOpen').addEventListener('click', openProject);
+
+  // ---- API key modal ----
+  var apiKeyOverlay = document.getElementById('apiKeyOverlay');
+  var geminiKeyInput = document.getElementById('geminiKeyInput');
+  var keyStatus = document.getElementById('keyStatus');
+  var keyStatusText = document.getElementById('keyStatusText');
+  function refreshKeyStatus(){
+    var val = getApiKey();
+    var has = val.length > 0;
+    keyStatus.classList.toggle('set', has);
+    keyStatusText.textContent = has ? 'Đã có API key Gemini — sẵn sàng tạo ảnh.' : 'Chưa có API key — cần nhập để dùng chức năng tạo ảnh.';
+    geminiKeyInput.value = val;
+  }
+  function openKeyModal(){ apiKeyOverlay.classList.add('open'); refreshKeyStatus(); geminiKeyInput.focus(); }
+  function closeKeyModal(){ apiKeyOverlay.classList.remove('open'); }
+  document.getElementById('btnApiKey').addEventListener('click', openKeyModal);
+  document.getElementById('btnCancelKey').addEventListener('click', closeKeyModal);
+  apiKeyOverlay.addEventListener('click', function(e){ if(e.target === apiKeyOverlay) closeKeyModal(); });
+  document.getElementById('btnSaveKey').addEventListener('click', function(){
+    try { localStorage.setItem(KEY_STORAGE, geminiKeyInput.value.trim()); } catch(e){}
+    refreshKeyStatus(); toast('Đã lưu API key'); closeKeyModal();
+  });
+  document.getElementById('btnClearKey').addEventListener('click', function(){
+    try { localStorage.removeItem(KEY_STORAGE); } catch(e){}
+    refreshKeyStatus(); toast('Đã xoá API key');
+  });
+  document.getElementById('toggleKeyVisibility').addEventListener('click', function(){
+    geminiKeyInput.type = geminiKeyInput.type === 'password' ? 'text' : 'password';
+  });
+
+  // ---- header sticky-on-scroll ----
+  var appShell = document.getElementById('appShell');
+  var appHeader = document.getElementById('appHeader');
+  appShell.addEventListener('scroll', function(){ appHeader.classList.toggle('is-scrolled', appShell.scrollTop > 4); }, { passive: true });
+
+  // ---- zoom (ctrl + wheel); bubble & zoom chip excluded ----
+  var zoomLevel = 1;
+  var supportsZoom = 'zoom' in document.documentElement.style;
+  var zoomChip = document.getElementById('zoomChip');
+  var zoomLabel = document.getElementById('zoomLabel');
+  function applyZoom(level){
+    zoomLevel = Math.min(2, Math.max(0.5, Math.round(level * 20) / 20));
+    if(supportsZoom){ appShell.style.zoom = zoomLevel; }
+    else { appShell.style.transformOrigin = 'top center'; appShell.style.transform = zoomLevel === 1 ? '' : 'scale(' + zoomLevel + ')'; }
+    zoomLabel.textContent = Math.round(zoomLevel * 100) + '%';
+    zoomChip.classList.add('visible');
+    clearTimeout(applyZoom._t);
+    applyZoom._t = setTimeout(function(){ if(zoomLevel === 1) zoomChip.classList.remove('visible'); }, 1800);
+  }
+  window.addEventListener('wheel', function(e){
+    if(!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    applyZoom(zoomLevel + (e.deltaY > 0 ? -0.05 : 0.05));
+  }, { passive: false });
+  document.getElementById('zoomInBtn').addEventListener('click', function(){ applyZoom(zoomLevel + 0.1); });
+  document.getElementById('zoomOutBtn').addEventListener('click', function(){ applyZoom(zoomLevel - 0.1); });
+  document.getElementById('zoomResetBtn').addEventListener('click', function(){ applyZoom(1); });
+
+  // ---- keyboard shortcuts ----
+  window.addEventListener('keydown', function(e){
+    var ctrlOrCmd = e.ctrlKey || e.metaKey;
+    if(!ctrlOrCmd) return;
+    var key = e.key.toLowerCase();
+    if(key === 's'){ e.preventDefault(); saveProject(); }
+    else if(key === 'o'){ e.preventDefault(); openProject(); }
+    else if(key === 'z' && e.shiftKey){ e.preventDefault(); redo(); }
+    else if(key === 'z'){ e.preventDefault(); undo(); }
+    else if(key === 'y'){ e.preventDefault(); redo(); }
+  });
+
+  document.getElementById('helpBubble').addEventListener('click', function(){
+    toast('Verdant Studio · Ctrl+S lưu, Ctrl+O mở, Ctrl+Z hoàn tác, Ctrl+cuộn chuột để zoom');
+  });
+
+  // ---- demo content for Voice / Image tabs (unchanged placeholders) ----
+  function pad2(n){ return n < 10 ? "0" + n : "" + n; }
+  var imgGrid = document.getElementById('imgGrid');
+  for(var i = 1; i <= 4; i++){
+    var card = document.createElement('div');
+    card.className = 'img-card';
+    card.innerHTML = '<span class="example-tag">VÍ DỤ ' + pad2(i) + '</span>' +
+      '<div class="img-actions"><button title="Xem full">⤢</button><button title="Tạo lại">↻</button><button title="Tải xuống">⬇</button></div>';
+    imgGrid.appendChild(card);
+  }
+  var waveform = document.getElementById('waveformDemo');
+  for(var w = 0; w < 40; w++){
+    var bar = document.createElement('span');
+    bar.style.height = (6 + Math.round(Math.abs(Math.sin(w * 0.7)) * 22)) + 'px';
+    waveform.appendChild(bar);
+  }
+  var playing = false;
+  document.getElementById('btnPlayDemo').addEventListener('click', function(){
+    playing = !playing; this.textContent = playing ? '❚❚' : '▶';
+    toast(playing ? 'Demo phát thử (chưa có audio thật)' : 'Đã tạm dừng');
+  });
+
+  // ---------------- boot ----------------
+  renderState();
+  history = [snapshot()];
+  historyIndex = 0;
+})();
+</script>
+</body>
+</html>
