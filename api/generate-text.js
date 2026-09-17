@@ -1,4 +1,6 @@
-// Proxy Gemini text — dùng để AI tự viết prompt "Mô tả bối cảnh" cho từng phân cảnh.
+// Proxy Gemini text — dùng để AI tự viết prompt "Mô tả bối cảnh" cho từng phân cảnh, và (mới) để AI mô tả
+// ngoại hình nhân vật bằng chữ từ ảnh mẫu (gửi kèm "images") — model Gemini flash hỗ trợ đa phương thức
+// (nhận cả ảnh lẫn chữ trong cùng 1 request) nên dùng chung endpoint này, không cần thêm API route riêng.
 const GEMINI_TEXT_MODEL = process.env.GEMINI_TEXT_MODEL || 'gemini-3.6-flash';
 
 export default async function handler(req, res) {
@@ -16,13 +18,20 @@ export default async function handler(req, res) {
     res.status(400).json({ error: { message: 'Thiếu nội dung để AI viết prompt' } });
     return;
   }
+  const images = Array.isArray(req.body && req.body.images) ? req.body.images : [];
+  const parts = [{ text }];
+  images.slice(0, 5).forEach((im) => {
+    if (im && im.data) {
+      parts.push({ inline_data: { mime_type: im.mime_type || 'image/png', data: im.data } });
+    }
+  });
   try {
     const upstream = await fetch(
       `https://generativelanguage.googleapis.com/v1/models/${GEMINI_TEXT_MODEL}:generateContent`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify({ contents: [{ parts: [{ text }] }] })
+        body: JSON.stringify({ contents: [{ parts }] })
       }
     );
     const json = await upstream.json().catch(() => ({}));
