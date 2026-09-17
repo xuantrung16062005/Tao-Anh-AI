@@ -1223,30 +1223,45 @@
     btnPreviewVoice.textContent = originalLabel;
   });
 
+  // Gemini TTS ở gói miễn phí chỉ cho khoảng 10 lượt gọi/phút — gọi dồn dập (nhiều luồng cùng lúc) sẽ bị lỗi
+  // "quota exceeded". Vì vậy phần tải trước này CHẠY TUẦN TỰ (từng giọng một) và nghỉ giữa các lượt gọi.
+  var TTS_PRELOAD_DELAY_MS = 7000;
+  function parseRetryDelaySeconds(errMsg){
+    var m = /retry in\s*([0-9.]+)\s*s/i.exec(String(errMsg || ''));
+    return m ? Math.ceil(parseFloat(m[1])) : null;
+  }
   btnPreloadAllVoices.addEventListener('click', async function(){
     if(!getApiKey()){ toast('Chưa có API key Gemini — bấm 🔑 để nhập'); openKeyModal(); return; }
     var todo = TTS_VOICES.filter(function(v){ return !voicePreviewCache[v]; });
     if(!todo.length){ toast('Đã tải trước sẵn cả 10 giọng — bấm "Nghe thử" là phát ngay'); return; }
     btnPreloadAllVoices.disabled = true; btnPreviewVoice.disabled = true;
-    var total = todo.length, done = 0;
+    var total = todo.length, done = 0, failed = 0;
     function updateProgress(){ btnPreloadAllVoices.textContent = '⏳ Đang tải trước… (' + done + '/' + total + ')'; }
     updateProgress();
-    var PRELOAD_CONCURRENCY = 3;
-    var nextIdx = 0;
-    async function worker(){
-      while(nextIdx < todo.length){
-        var v = todo[nextIdx++];
-        try { voicePreviewCache[v] = await callGeminiTTS(VOICE_PREVIEW_TEXT, v); }
-        catch(err){ console.error('Lỗi tải trước giọng ' + v, err); }
-        done++; updateProgress();
+    for(var i = 0; i < todo.length; i++){
+      var v = todo[i];
+      try {
+        voicePreviewCache[v] = await callGeminiTTS(VOICE_PREVIEW_TEXT, v);
+      } catch(err){
+        console.error('Lỗi tải trước giọng ' + v, err);
+        var retrySec = parseRetryDelaySeconds(err && err.message);
+        if(retrySec){
+          // bị chặn do vượt hạn mức/phút — chờ đúng thời gian Google yêu cầu rồi thử lại đúng giọng này 1 lần
+          btnPreloadAllVoices.textContent = '⏳ Đợi ' + retrySec + 's do vượt hạn mức, đang thử lại giọng ' + v + '…';
+          await new Promise(function(r){ setTimeout(r, (retrySec + 1) * 1000); });
+          try { voicePreviewCache[v] = await callGeminiTTS(VOICE_PREVIEW_TEXT, v); }
+          catch(err2){ console.error('Lỗi thử lại giọng ' + v, err2); failed++; }
+        } else {
+          failed++;
+        }
       }
+      done++; updateProgress();
+      if(i < todo.length - 1){ await new Promise(function(r){ setTimeout(r, TTS_PRELOAD_DELAY_MS); }); }
     }
-    var workers = [];
-    for(var w = 0; w < Math.min(PRELOAD_CONCURRENCY, todo.length); w++){ workers.push(worker()); }
-    await Promise.all(workers);
     btnPreloadAllVoices.disabled = false; btnPreviewVoice.disabled = false;
     btnPreloadAllVoices.textContent = '⏬ Tải trước tất cả giọng';
-    toast('Đã tải trước xong — giờ bấm "Nghe thử" ở giọng nào cũng phát ngay lập tức');
+    if(failed > 0){ toast('Đã tải trước xong, còn ' + failed + ' giọng bị lỗi (thường do vượt hạn mức) — thử lại bằng nút "Nghe thử" cho từng giọng đó', true); }
+    else { toast('Đã tải trước xong — giờ bấm "Nghe thử" ở giọng nào cũng phát ngay lập tức'); }
   });
 
   async function generateSceneImage(sceneId, opts){
