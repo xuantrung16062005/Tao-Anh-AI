@@ -484,17 +484,45 @@
     var m = /^data:([^;]+);base64,(.*)$/.exec(dataUrl || '');
     return m ? { mime_type: m[1], data: m[2] } : null;
   }
-  function buildCharacterParts(characterIds){
+  // Ảnh mẫu chụp từ điện thoại thường rất nặng (vài MB/ảnh, có thể lên chục MB khi gộp nhiều ảnh) — gửi thẳng lên
+  // server dễ bị lỗi "413 Payload Too Large" (Vercel giới hạn dung lượng mỗi request). Hàm này thu nhỏ + nén ảnh
+  // lại (còn tối đa ~1024px cạnh dài, xuất JPEG) trước khi gửi đi, vừa đủ chi tiết để AI nhận diện ngoại hình,
+  // vừa nhẹ để không bị chặn. Dùng chung cho mọi nơi gửi ảnh nhân vật lên server (mô tả ngoại hình, tạo ảnh Gemini).
+  function resizeImageDataUrl(dataUrl, maxDim, quality){
+    return new Promise(function(resolve){
+      try {
+        var img = new Image();
+        img.onload = function(){
+          try {
+            var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+            var scale = Math.min(1, (maxDim || 1024) / Math.max(w, h));
+            var tw = Math.max(1, Math.round(w * scale)), th = Math.max(1, Math.round(h * scale));
+            var canvas = document.createElement('canvas');
+            canvas.width = tw; canvas.height = th;
+            var ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, tw, th);
+            resolve(canvas.toDataURL('image/jpeg', quality || 0.85));
+          } catch(e){ resolve(dataUrl); }
+        };
+        img.onerror = function(){ resolve(dataUrl); };
+        img.src = dataUrl;
+      } catch(e){ resolve(dataUrl); }
+    });
+  }
+  async function buildCharacterParts(characterIds){
     var parts = [];
-    characterIds.map(function(id){ return state.characters.find(function(c){ return c.id === id; }); })
-      .filter(Boolean).forEach(function(c){
-        var line = 'Nhân vật "' + (c.name || '(chưa đặt tên)') + '"' + (c.description ? ' — đặc điểm cần giữ nguyên xuyên suốt: ' + c.description : '') + '. Vẽ đúng ngoại hình nhân vật này theo (các) ảnh tham chiếu sau:';
-        parts.push({ text: line });
-        c.images.slice(0, 3).forEach(function(im){
-          var inline = dataUrlToInline(im.dataUrl);
-          if(inline) parts.push({ inline_data: inline });
-        });
-      });
+    var chars = characterIds.map(function(id){ return state.characters.find(function(c){ return c.id === id; }); }).filter(Boolean);
+    for(var i = 0; i < chars.length; i++){
+      var c = chars[i];
+      var line = 'Nhân vật "' + (c.name || '(chưa đặt tên)') + '"' + (c.description ? ' — đặc điểm cần giữ nguyên xuyên suốt: ' + c.description : '') + '. Vẽ đúng ngoại hình nhân vật này theo (các) ảnh tham chiếu sau:';
+      parts.push({ text: line });
+      var imgs = c.images.slice(0, 3);
+      for(var j = 0; j < imgs.length; j++){
+        var resized = await resizeImageDataUrl(imgs[j].dataUrl, 1024, 0.85);
+        var inline = dataUrlToInline(resized);
+        if(inline) parts.push({ inline_data: inline });
+      }
+    }
     return parts;
   }
 
@@ -563,7 +591,9 @@
     if(c.description && c.description.trim()){
       if(!confirm('Nhân vật này đã có "Đặc điểm cần đồng nhất" — ghi đè bằng mô tả AI viết mới từ ảnh mẫu?')) return;
     }
-    var images = c.images.slice(0, 5).map(function(im){ return dataUrlToInline(im.dataUrl); }).filter(Boolean);
+    var images = (await Promise.all(c.images.slice(0, 5).map(function(im){
+      return resizeImageDataUrl(im.dataUrl, 1024, 0.85);
+    }))).map(dataUrlToInline).filter(Boolean);
     charDescLoading[charId] = true; renderCharacters();
     try {
       var desc = await callGeminiText(buildCharacterAppearanceDescribeRequest(), images);
@@ -828,7 +858,7 @@
         var styleText = (state.stylePrompt || '').trim();
         var finalPrompt = (styleText ? ('Phong cách chung cần đồng nhất: ' + styleText + '\n') : '') + 'Mô tả bối cảnh phân cảnh: ' + settingText;
         var parts = [{ text: instruction + '\n\n' + finalPrompt }];
-        parts = parts.concat(buildCharacterParts(s.characterIds));
+        parts = parts.concat(await buildCharacterParts(s.characterIds));
         if(s.characterIds.length === 0){
           var idx = state.scenes.findIndex(function(x){ return x.id === sceneId; });
           var prev = state.scenes[idx - 1];
