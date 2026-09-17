@@ -10,6 +10,7 @@
   // và không còn bị lộ ra ngoài trình duyệt. Nếu người dùng vẫn nhập key riêng ở nút 🔑, key đó sẽ được gửi kèm
   // theo mỗi request (ưu tiên dùng key riêng đó) — dùng cho trường hợp muốn override key server.
   var API_IMAGE_ENDPOINT = '/api/generate-image';
+  var API_IMAGE_CF_ENDPOINT = '/api/generate-image-cf';
   var API_TEXT_ENDPOINT = '/api/generate-text';
   var API_TTS_ENDPOINT = '/api/tts';
   var TTS_VOICES = ['Kore','Puck','Zephyr','Charon','Fenrir','Leda','Orus','Aoede','Callirrhoe','Autonoe'];
@@ -95,7 +96,7 @@
     storyContent: "",
     voice: { name: "Kore", audio: null, status: "idle", errorMsg: "" },
     gallery: [],
-    imageProvider: "gemini" // "gemini" (trả phí, chất lượng cao, đồng nhất nhân vật tốt) | "pollinations" (miễn phí, chậm hơn, không tham chiếu ảnh nhân vật)
+    imageProvider: "gemini" // "gemini" (trả phí, chất lượng cao, đồng nhất nhân vật tốt) | "cloudflare" (miễn phí, chất lượng khá, tạo song song được, không tham chiếu ảnh nhân vật) | "pollinations" (miễn phí, chậm hơn, không tham chiếu ảnh nhân vật)
   };
 
   function newCharacter(){
@@ -441,8 +442,26 @@
     });
     return { dataUrl: dataUrl, mime: mime };
   }
-  // Prompt dạng văn bản thuần cho Pollinations — không gửi kèm ảnh nhân vật (Pollinations không nhận ảnh tham chiếu base64),
-  // nên chỉ mô tả nhân vật bằng chữ, độ đồng nhất ngoại hình sẽ kém chính xác hơn so với dùng Gemini.
+  // ---------------- Cloudflare Workers AI (nguồn tạo ảnh miễn phí thứ 2, chất lượng tốt hơn Pollinations) ----------------
+  // Gọi qua backend /api/generate-image-cf (cần CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN cấu hình trên server —
+  // xem README). Vì đây là hạn mức riêng của tài khoản Cloudflare (10.000 neurons/ngày miễn phí, mỗi ảnh chỉ tốn
+  // vài neuron) chứ không dùng chung với người lạ như Pollinations ẩn danh, nên có thể tạo NHIỀU ảnh song song
+  // cùng lúc mà không cần giãn cách/chờ như Pollinations.
+  async function callCloudflareImage(promptText){
+    var finalPrompt = await translatePromptToEnglishForImage(promptText);
+    var res = await fetch(API_IMAGE_CF_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: finalPrompt })
+    });
+    var json = await res.json().catch(function(){ return {}; });
+    if(!res.ok){ throw new Error((json && json.error && json.error.message) || ('Lỗi HTTP ' + res.status + ' từ Cloudflare')); }
+    if(!json.image){ throw new Error('Không nhận được ảnh từ Cloudflare Workers AI'); }
+    return { dataUrl: 'data:image/png;base64,' + json.image, mime: 'image/png' };
+  }
+
+  // Prompt dạng văn bản thuần cho Pollinations/Cloudflare — không gửi kèm ảnh nhân vật (2 nguồn này không nhận
+  // ảnh tham chiếu base64), nên chỉ mô tả nhân vật bằng chữ, độ đồng nhất ngoại hình sẽ kém chính xác hơn so với dùng Gemini.
   function buildTextOnlyPrompt(styleText, charList, settingText, editText){
     var parts = [];
     if(styleText) parts.push('Phong cách chung: ' + styleText);
@@ -748,16 +767,16 @@
     if(!s) return;
     var settingText = (s.setting && s.setting.trim()) || (s.promptName && s.promptName.trim()) || (s.vi && s.vi.trim()) || '';
     if(!settingText && !opts.editPrompt){ toast('Hãy nhập Mô tả bối cảnh (hoặc Tên Prompt / Tiếng Việt) trước khi tạo ảnh'); return; }
-    var usePollinations = state.imageProvider === 'pollinations';
+    var provider = state.imageProvider;
 
     s.status = 'loading'; renderScenes(); if(lightboxState.open && lightboxState.sceneId === sceneId) renderLightbox();
 
     try {
       var result;
-      if(usePollinations){
+      if(provider === 'pollinations' || provider === 'cloudflare'){
         var chars = s.characterIds.map(function(id){ return state.characters.find(function(c){ return c.id === id; }); }).filter(Boolean);
         var textPrompt = buildTextOnlyPrompt((state.stylePrompt || '').trim(), chars, settingText, opts.editPrompt);
-        result = await callPollinationsImage(textPrompt);
+        result = provider === 'cloudflare' ? await callCloudflareImage(textPrompt) : await callPollinationsImage(textPrompt);
       } else {
         var instruction = 'Vẽ một hình minh hoạ điện ảnh, chất lượng cao cho phân cảnh sau. CHỈ vẽ hình ảnh, tuyệt đối không thêm chữ, watermark hay chú thích nào trong ảnh.';
         var styleText = (state.stylePrompt || '').trim();
@@ -958,7 +977,7 @@
   }
   document.querySelectorAll('.provider-select').forEach(function(sel){
     sel.addEventListener('change', function(){
-      state.imageProvider = this.value === 'pollinations' ? 'pollinations' : 'gemini';
+      state.imageProvider = (this.value === 'pollinations' || this.value === 'cloudflare') ? this.value : 'gemini';
       renderImageProviderSelects();
       scheduleHistoryPush();
     });
@@ -1099,7 +1118,7 @@
     state.gallery = Array.isArray(proj.gallery) ? proj.gallery.map(function(g){
       return { id: g.id || uid('g'), image: g.image || null, status: g.image ? 'done' : 'idle', errorMsg: "" };
     }) : [];
-    state.imageProvider = proj.imageProvider === 'pollinations' ? 'pollinations' : 'gemini';
+    state.imageProvider = (proj.imageProvider === 'pollinations' || proj.imageProvider === 'cloudflare') ? proj.imageProvider : 'gemini';
     state.activeTab = proj.activeTab || "characters";
   }
   document.getElementById('fileOpenInput').addEventListener('change', function(e){
@@ -1237,14 +1256,14 @@
     if(!g) return;
     var promptText = (state.tabs.image || '').trim();
     if(!promptText && !opts.editPrompt){ toast('Hãy nhập mô tả hình ảnh muốn tạo trước'); return; }
-    var usePollinations = state.imageProvider === 'pollinations';
+    var galleryProvider = state.imageProvider;
     g.status = 'loading'; renderGallery();
     if(galleryLightboxState.open && galleryLightboxState.id === gId) renderGalleryLightbox();
     try {
       var result;
-      if(usePollinations){
+      if(galleryProvider === 'pollinations' || galleryProvider === 'cloudflare'){
         var textPrompt2 = 'Minh hoạ chất lượng cao, không chữ, không watermark, không chú thích. ' + promptText + (opts.editPrompt ? ('. Yêu cầu chỉnh sửa thêm: ' + opts.editPrompt) : '');
-        result = await callPollinationsImage(textPrompt2);
+        result = galleryProvider === 'cloudflare' ? await callCloudflareImage(textPrompt2) : await callPollinationsImage(textPrompt2);
       } else {
         var instruction = 'Vẽ một hình minh hoạ chất lượng cao theo mô tả sau. CHỈ vẽ hình ảnh, tuyệt đối không thêm chữ, watermark hay chú thích nào trong ảnh.';
         var parts = [{ text: instruction + '\n\n' + promptText }];
