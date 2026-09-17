@@ -181,17 +181,27 @@
   }
 
   .img-grid{ display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
-  .img-card{ position: relative; aspect-ratio: 1; border-radius: var(--radius-sm); overflow: hidden; background: var(--grad-hero); border: 1px solid var(--border); }
+  .img-card{ position: relative; aspect-ratio: 1; border-radius: var(--radius-sm); overflow: hidden; background: var(--grad-hero); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; }
+  .img-card img{ width: 100%; height: 100%; object-fit: cover; display: block; cursor: pointer; }
   .img-card .example-tag{ position: absolute; top: 8px; left: 8px; font-size: 10px; font-weight: 700; background: rgba(0,0,0,.45); color: #fff; padding: 2px 7px; border-radius: 999px; letter-spacing: .04em; }
   .img-card .img-actions{ position: absolute; inset: auto 0 0 0; display: flex; justify-content: center; gap: 6px; padding: 8px; background: linear-gradient(to top, rgba(0,0,0,.55), transparent); opacity: 0; transition: opacity .2s ease; }
   .img-card:hover .img-actions{ opacity: 1; }
   .img-actions button{ width: 28px; height: 28px; border-radius: 8px; border: none; cursor: pointer; background: rgba(255,255,255,.92); color: #10241a; font-size: 13px; display: flex; align-items: center; justify-content: center; transition: transform .15s ease, background .15s ease; }
   .img-actions button:hover{ transform: translateY(-1px); background: #fff; }
+  .gallery-del-btn{ position: absolute; top: 6px; right: 6px; z-index: 2; background: rgba(255,255,255,.92); }
+  .img-card .empty-hint{ font-size: 11px; color: var(--ink-faint); text-align: center; padding: 6px; }
+  .img-card .err-hint{ font-size: 10.5px; color: #dc2626; text-align: center; padding: 6px; }
 
   .voice-demo{ display: flex; align-items: center; gap: 14px; padding: 16px; }
   .play-btn{ width: 46px; height: 46px; border-radius: 50%; border: none; cursor: pointer; flex: none; background-image: var(--grad-primary); color: #fff; font-size: 16px; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-sm); }
   .waveform{ flex: 1; height: 34px; display: flex; align-items: center; gap: 2px; }
   .waveform span{ width: 3px; border-radius: 2px; background: var(--primary-400); opacity: .55; }
+  .voice-controls{ display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .voice-select-label{ display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+  select.voice-select{ padding: 8px 10px; min-width: 140px; cursor: pointer; }
+  .voice-player{ display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
+  .voice-player audio{ flex: 1; min-width: 0; }
+  .err-hint.block-err{ font-size: 12px; color: #dc2626; background: rgba(220,38,38,.08); border: 1px solid rgba(220,38,38,.25); border-radius: var(--radius-sm); padding: 8px 12px; }
 
   .fixed-ui{ position: fixed; z-index: 100; }
   #zoomChip{
@@ -415,6 +425,7 @@
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
               <button class="btn ghost" id="btnAddScene">+ Thêm phân đoạn</button>
               <button class="btn ghost" id="btnImportExcel">📥 Nhập từ Excel</button>
+              <button class="btn ghost" id="btnDownloadAllScenes" title="Tải toàn bộ ảnh phân cảnh dạng zip, đặt tên theo cột Scene">⬇ Tải tất cả ảnh</button>
             </div>
             <button class="btn primary" id="btnGenAll">✨ Tạo ảnh hàng loạt</button>
           </div>
@@ -437,27 +448,36 @@
       </section>
 
       <section class="panel" data-panel="voice">
-        <div class="panel-head"><div><h2>Giọng nói</h2><p>Chuyển kịch bản thành giọng đọc tự động.</p></div></div>
+        <div class="panel-head"><div><h2>Giọng nói</h2><p>Chuyển kịch bản thành giọng đọc bằng Gemini TTS.</p></div></div>
         <div class="card workspace-card">
           <textarea class="workspace-input" data-tab-store="voice" placeholder="Dán kịch bản cần đọc vào đây…" style="min-height:110px"></textarea>
-          <div class="card voice-demo" style="border-style:dashed;">
-            <button class="play-btn" id="btnPlayDemo">▶</button>
-            <div class="waveform" id="waveformDemo"></div>
-            <button class="btn ghost icon-only" title="Tải file âm thanh">⬇</button>
+          <div class="voice-controls">
+            <label class="voice-select-label">Giọng đọc
+              <select class="field-input voice-select" id="voiceNameSelect"></select>
+            </label>
+            <button class="btn primary" id="btnGenVoice">🎙️ Tạo giọng nói</button>
           </div>
-          <div class="hint-note">⚙️ Bản demo dạng sóng âm minh hoạ — tính năng tạo giọng nói thật bằng API sẽ được thêm sau.</div>
+          <div class="card voice-player" id="voicePlayerCard" style="display:none;">
+            <audio id="voiceAudioEl" controls></audio>
+            <button class="btn ghost icon-only" id="btnDownloadVoice" title="Tải file âm thanh">⬇</button>
+          </div>
+          <div class="err-hint block-err" id="voiceErrorHint" style="display:none;"></div>
+          <div class="hint-note">⚙️ Cần API key Gemini (bấm 🔑). Tính năng gọi model chuyển văn bản thành giọng nói thật của Gemini — hoạt động tốt nhất với đoạn văn bản dưới ~2000 ký tự mỗi lần tạo.</div>
         </div>
       </section>
 
       <section class="panel" data-panel="image">
         <div class="panel-head">
-          <div><h2>Tạo ảnh</h2><p>Mỗi ảnh luôn có nút xem full, tạo lại và tải xuống.</p></div>
-          <button class="btn ghost" id="btnDownloadAll">⬇ Tải tất cả</button>
+          <div><h2>Tạo ảnh</h2><p>Tạo nhanh ảnh từ mô tả bất kỳ (không gắn nhân vật/phân cảnh). Mỗi ảnh luôn có nút xem full, tạo lại và tải xuống.</p></div>
+          <button class="btn ghost" id="btnDownloadAll" title="Tải toàn bộ ảnh trong lưới dạng zip">⬇ Tải tất cả</button>
         </div>
         <div class="card workspace-card">
           <textarea class="workspace-input" data-tab-store="image" placeholder="Mô tả hình ảnh muốn tạo…" style="min-height:80px"></textarea>
+          <div style="display:flex;justify-content:flex-end;">
+            <button class="btn primary" id="btnGenGalleryImage">✨ Tạo ảnh</button>
+          </div>
           <div class="img-grid" id="imgGrid"></div>
-          <div class="hint-note">⚙️ Lưới ảnh minh hoạ cho quy ước nút bấm — tính năng tạo ảnh thật theo phân cảnh &amp; nhân vật nằm ở tab Kịch bản &amp; Prompt.</div>
+          <div class="hint-note">⚙️ Ảnh tạo ở đây dùng chung model Nano Banana, không tham chiếu nhân vật. Cần đồng nhất nhân vật/bối cảnh theo phân đoạn thì dùng tab "Kịch bản &amp; Prompt".</div>
         </div>
       </section>
 
@@ -525,6 +545,28 @@
   </div>
 </div>
 
+<div class="lightbox-overlay" id="galleryLightboxOverlay">
+  <div class="lightbox">
+    <div class="lightbox-stage" id="galleryLightboxStage">
+      <button class="lightbox-close" id="galleryLightboxCloseBtn">✕</button>
+      <button class="lightbox-nav-btn left" id="galleryLightboxPrevBtn">‹</button>
+      <img id="galleryLightboxImg" alt="Ảnh đã tạo">
+      <button class="lightbox-nav-btn right" id="galleryLightboxNextBtn">›</button>
+    </div>
+    <div class="lightbox-side scroll-thin">
+      <div class="lightbox-refine">
+        <h4>Tinh chỉnh ảnh này</h4>
+        <textarea id="galleryLightboxRefineInput" placeholder="Ví dụ: đổi ánh sáng thành hoàng hôn, thêm mưa nhẹ…"></textarea>
+      </div>
+      <div class="lightbox-actions">
+        <button class="btn primary" id="galleryLightboxRefineBtn">🪄 Tạo lại tại đây</button>
+        <button class="btn ghost" id="galleryLightboxRegenBtn">↻ Tạo lại từ đầu</button>
+        <button class="btn ghost" id="galleryLightboxDownloadBtn">⬇ Tải ảnh</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 (function(){
   "use strict";
@@ -532,6 +574,12 @@
   var KEY_STORAGE = 'vs_gemini_api_key';
   var GEMINI_MODEL = 'gemini-3.1-flash-image'; // "Nano Banana 2" — đổi sang 'gemini-3-pro-image' nếu cần chất lượng cao hơn
   var GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1/models/' + GEMINI_MODEL + ':generateContent';
+  // Text-to-speech: thử API "interactions" mới trước, tự động rơi về generateContent kiểu cũ nếu không dùng được.
+  var TTS_MODEL_PRIMARY = 'gemini-3.1-flash-tts-preview';
+  var TTS_ENDPOINT_INTERACTIONS = 'https://generativelanguage.googleapis.com/v1beta/interactions';
+  var TTS_MODEL_FALLBACK = 'gemini-2.5-flash-preview-tts';
+  var TTS_ENDPOINT_LEGACY = 'https://generativelanguage.googleapis.com/v1beta/models/' + TTS_MODEL_FALLBACK + ':generateContent';
+  var TTS_VOICES = ['Kore','Puck','Zephyr','Charon','Fenrir','Leda','Orus','Aoede','Callirrhoe','Autonoe'];
 
   // ---------------- helpers ----------------
   function uid(prefix){ return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
@@ -568,6 +616,29 @@
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
   }
+  // Gói dữ liệu PCM thô (base64) do Gemini TTS trả về thành file .wav phát được trong <audio>/tải xuống.
+  function pcmBase64ToWavDataUrl(base64Pcm, sampleRate, numChannels, bitsPerSample){
+    sampleRate = sampleRate || 24000; numChannels = numChannels || 1; bitsPerSample = bitsPerSample || 16;
+    var bstr = atob(base64Pcm);
+    var n = bstr.length;
+    var pcm = new Uint8Array(n);
+    for(var i = 0; i < n; i++){ pcm[i] = bstr.charCodeAt(i); }
+    var blockAlign = numChannels * bitsPerSample / 8;
+    var byteRate = sampleRate * blockAlign;
+    var header = new Uint8Array(44);
+    var view = new DataView(header.buffer);
+    function ws(offset, str){ for(var j = 0; j < str.length; j++){ view.setUint8(offset + j, str.charCodeAt(j)); } }
+    ws(0,'RIFF'); view.setUint32(4, 36 + pcm.length, true); ws(8,'WAVE');
+    ws(12,'fmt '); view.setUint32(16,16,true); view.setUint16(20,1,true);
+    view.setUint16(22,numChannels,true); view.setUint32(24,sampleRate,true);
+    view.setUint32(28,byteRate,true); view.setUint16(32,blockAlign,true); view.setUint16(34,bitsPerSample,true);
+    ws(36,'data'); view.setUint32(40, pcm.length, true);
+    var full = new Uint8Array(44 + pcm.length);
+    full.set(header, 0); full.set(pcm, 44);
+    var bin = ''; var CHUNK = 0x8000;
+    for(var i2 = 0; i2 < full.length; i2 += CHUNK){ bin += String.fromCharCode.apply(null, full.subarray(i2, i2 + CHUNK)); }
+    return 'data:audio/wav;base64,' + btoa(bin);
+  }
 
   var toastEl = document.getElementById('toast');
   var toastTimer = null;
@@ -587,7 +658,9 @@
     tabs: { voice: "", image: "" },
     characters: [],
     scenes: [],
-    stylePrompt: ""
+    stylePrompt: "",
+    voice: { name: "Kore", audio: null, status: "idle", errorMsg: "" },
+    gallery: []
   };
 
   function newCharacter(){
@@ -929,6 +1002,120 @@
     return { dataUrl: 'data:' + mime + ';base64,' + imgPart.data, mime: mime };
   }
 
+  // ---------------- Gemini TTS (text-to-speech) client ----------------
+  function extractSampleRate(mimeStr){
+    var m = /rate=(\d+)/.exec(mimeStr || '');
+    return m ? parseInt(m[1], 10) : 24000;
+  }
+  async function callGeminiTTS(text, voiceName){
+    var apiKey = getApiKey();
+    if(!apiKey) throw { code: 'no_key', message: 'Chưa có API key' };
+
+    // Thử 1: API "interactions" (mới)
+    try {
+      var body1 = {
+        model: TTS_MODEL_PRIMARY,
+        input: text,
+        response_format: { type: 'audio' },
+        generation_config: { speech_config: [{ voice: voiceName }] }
+      };
+      var res1 = await fetch(TTS_ENDPOINT_INTERACTIONS, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        body: JSON.stringify(body1)
+      });
+      if(res1.ok){
+        var json1 = await res1.json().catch(function(){ return {}; });
+        var audioObj = json1.output_audio || (json1.interaction && json1.interaction.output_audio);
+        var b64a = audioObj && (audioObj.data || audioObj.audio_data || audioObj.bytes);
+        if(b64a){
+          var mimeStr1 = audioObj.mime_type || audioObj.mimeType || 'audio/L16;rate=24000';
+          return { dataUrl: pcmBase64ToWavDataUrl(b64a, extractSampleRate(mimeStr1), 1, 16), mime: 'audio/wav' };
+        }
+      }
+    } catch(e1){ /* rơi xuống cách gọi cũ bên dưới */ }
+
+    // Thử 2: generateContent kiểu cũ với responseModalities AUDIO (dự phòng)
+    var body2 = {
+      contents: [{ parts: [{ text: text }] }],
+      generationConfig: {
+        responseModalities: ['AUDIO'],
+        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voiceName } } }
+      }
+    };
+    var res2 = await fetch(TTS_ENDPOINT_LEGACY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify(body2)
+    });
+    var json2 = await res2.json().catch(function(){ return {}; });
+    if(!res2.ok){ throw new Error((json2 && json2.error && json2.error.message) || ('Lỗi HTTP ' + res2.status)); }
+    var cand2 = json2.candidates && json2.candidates[0];
+    var p2 = (cand2 && cand2.content && cand2.content.parts) || [];
+    var audioPart = null;
+    for(var i3 = 0; i3 < p2.length; i3++){ var part2 = p2[i3].inline_data || p2[i3].inlineData; if(part2){ audioPart = part2; break; } }
+    if(!audioPart) throw new Error('Không nhận được âm thanh từ Gemini.');
+    var mimeStr2 = audioPart.mime_type || audioPart.mimeType || 'audio/L16;rate=24000';
+    return { dataUrl: pcmBase64ToWavDataUrl(audioPart.data, extractSampleRate(mimeStr2), 1, 16), mime: 'audio/wav' };
+  }
+
+  function renderVoice(){
+    var sel = document.getElementById('voiceNameSelect');
+    if(sel && sel.value !== state.voice.name) sel.value = state.voice.name;
+    var btn = document.getElementById('btnGenVoice');
+    if(btn){
+      btn.disabled = state.voice.status === 'loading';
+      btn.textContent = state.voice.status === 'loading' ? '⏳ Đang tạo…' : '🎙️ Tạo giọng nói';
+    }
+    var card = document.getElementById('voicePlayerCard');
+    var audioEl = document.getElementById('voiceAudioEl');
+    if(card && audioEl){
+      if(state.voice.audio){
+        card.style.display = 'flex';
+        if(audioEl.getAttribute('src') !== state.voice.audio.dataUrl) audioEl.src = state.voice.audio.dataUrl;
+      } else {
+        card.style.display = 'none';
+        audioEl.removeAttribute('src');
+      }
+    }
+    var errEl = document.getElementById('voiceErrorHint');
+    if(errEl){
+      errEl.style.display = state.voice.status === 'error' ? 'block' : 'none';
+      errEl.textContent = state.voice.errorMsg || '';
+    }
+  }
+
+  async function generateVoice(){
+    var text = (state.tabs.voice || '').trim();
+    if(!text){ toast('Hãy nhập kịch bản cần đọc trước'); return; }
+    if(!getApiKey()){ toast('Chưa có API key Gemini — bấm 🔑 để nhập'); openKeyModal(); return; }
+    state.voice.status = 'loading'; renderVoice();
+    try {
+      var result = await callGeminiTTS(text, state.voice.name);
+      state.voice.audio = result; state.voice.status = 'done'; state.voice.errorMsg = '';
+      toast('Đã tạo xong giọng đọc');
+    } catch(err){
+      console.error(err);
+      state.voice.status = 'error'; state.voice.errorMsg = (err && err.message) || 'Lỗi không xác định';
+      toast('Lỗi tạo giọng nói: ' + state.voice.errorMsg, true);
+    }
+    renderVoice();
+    scheduleHistoryPush();
+  }
+
+  (function populateVoiceSelect(){
+    var sel = document.getElementById('voiceNameSelect');
+    sel.innerHTML = TTS_VOICES.map(function(v){ return '<option value="'+v+'">'+v+'</option>'; }).join('');
+  })();
+  document.getElementById('voiceNameSelect').addEventListener('change', function(){
+    state.voice.name = this.value; scheduleHistoryPush();
+  });
+  document.getElementById('btnGenVoice').addEventListener('click', generateVoice);
+  document.getElementById('btnDownloadVoice').addEventListener('click', function(){
+    if(!state.voice.audio) return;
+    triggerDownload(dataUrlToBlob(state.voice.audio.dataUrl), slugify(state.projectName) + '-giong-doc.wav');
+  });
+
   async function generateSceneImage(sceneId, opts){
     opts = opts || {};
     var s = state.scenes.find(function(x){ return x.id === sceneId; });
@@ -984,7 +1171,7 @@
     var ext = (s.image.mime.split('/')[1] || 'png').replace('jpeg','jpg');
     triggerDownload(dataUrlToBlob(s.image.dataUrl), sanitizeFileLabel(s.sceneLabel, idx + 1) + '.' + ext);
   }
-  document.getElementById('btnDownloadAll').addEventListener('click', downloadAllZip);
+  document.getElementById('btnDownloadAllScenes').addEventListener('click', downloadAllZip);
   async function downloadAllZip(){
     var items = state.scenes.map(function(s, i){ return { idx: i + 1, s: s }; }).filter(function(o){ return o.s.image; });
     if(!items.length){ toast('Chưa có ảnh nào để tải'); return; }
@@ -1068,6 +1255,8 @@
     document.querySelectorAll('[data-tab-store]').forEach(function(el){ el.value = state.tabs[el.getAttribute('data-tab-store')] || ""; });
     renderCharacters();
     renderScenes();
+    renderVoice();
+    renderGallery();
     setActiveTab(state.activeTab, true);
   }
 
@@ -1171,6 +1360,11 @@
             errorMsg: ""
           };
         }) : [];
+        state.voice = Object.assign({ name: "Kore", audio: null, status: "idle", errorMsg: "" }, proj.voice || {});
+        state.voice.status = state.voice.audio ? 'done' : 'idle';
+        state.gallery = Array.isArray(proj.gallery) ? proj.gallery.map(function(g){
+          return { id: g.id || uid('g'), image: g.image || null, status: g.image ? 'done' : 'idle', errorMsg: "" };
+        }) : [];
         state.activeTab = proj.activeTab || "characters";
         renderState();
         history = [snapshot()]; historyIndex = 0;
@@ -1256,26 +1450,165 @@
     toast('Verdant Studio · Ctrl+S lưu, Ctrl+O mở, Ctrl+Z hoàn tác, Ctrl+cuộn chuột để zoom');
   });
 
-  // ---- demo content for Voice / Image tabs (unchanged placeholders) ----
+  // ================= TAB "TẠO ẢNH" — thư viện ảnh tự do (không gắn nhân vật/phân cảnh) =================
   function pad2(n){ return n < 10 ? "0" + n : "" + n; }
   var imgGrid = document.getElementById('imgGrid');
-  for(var i = 1; i <= 4; i++){
-    var card = document.createElement('div');
-    card.className = 'img-card';
-    card.innerHTML = '<span class="example-tag">VÍ DỤ ' + pad2(i) + '</span>' +
-      '<div class="img-actions"><button title="Xem full">⤢</button><button title="Tạo lại">↻</button><button title="Tải xuống">⬇</button></div>';
-    imgGrid.appendChild(card);
+  function newGalleryItem(){ return { id: uid('g'), image: null, status: 'idle', errorMsg: '' }; }
+
+  function renderGallery(){
+    if(!state.gallery.length){
+      imgGrid.innerHTML = '<div class="hint-note">Chưa có ảnh nào. Nhập mô tả ở trên rồi bấm "✨ Tạo ảnh".</div>';
+      return;
+    }
+    imgGrid.innerHTML = state.gallery.map(function(g, idx){
+      var inner;
+      if(g.status === 'loading'){ inner = '<div class="spinner"></div>'; }
+      else if(g.image){ inner = '<img src="'+g.image.dataUrl+'" data-action="gview" data-g="'+g.id+'" alt="Ảnh '+(idx+1)+'">'; }
+      else if(g.status === 'error'){ inner = '<div class="err-hint" title="'+escapeHtml(g.errorMsg||'')+'">Lỗi tạo ảnh<br>(rê chuột xem chi tiết)</div>'; }
+      else { inner = '<div class="empty-hint">Chưa có ảnh</div>'; }
+      return '<div class="img-card" data-g="'+g.id+'">' + inner +
+        '<span class="example-tag">ẢNH ' + pad2(idx + 1) + '</span>' +
+        '<button class="row-del-btn gallery-del-btn" data-action="gdel" data-g="'+g.id+'" title="Xoá ảnh này">✕</button>' +
+        (g.image ? ('<div class="img-actions">' +
+          '<button data-action="gview" data-g="'+g.id+'" title="Xem full">⤢</button>' +
+          '<button data-action="gregen" data-g="'+g.id+'" title="Tạo lại">↻</button>' +
+          '<button data-action="gdownload" data-g="'+g.id+'" title="Tải xuống">⬇</button>' +
+        '</div>') : '') +
+      '</div>';
+    }).join('');
   }
-  var waveform = document.getElementById('waveformDemo');
-  for(var w = 0; w < 40; w++){
-    var bar = document.createElement('span');
-    bar.style.height = (6 + Math.round(Math.abs(Math.sin(w * 0.7)) * 22)) + 'px';
-    waveform.appendChild(bar);
+
+  async function generateGalleryImage(gId, opts){
+    opts = opts || {};
+    var g = state.gallery.find(function(x){ return x.id === gId; });
+    if(!g) return;
+    var promptText = (state.tabs.image || '').trim();
+    if(!promptText && !opts.editPrompt){ toast('Hãy nhập mô tả hình ảnh muốn tạo trước'); return; }
+    if(!getApiKey()){ toast('Chưa có API key Gemini — bấm 🔑 để nhập'); openKeyModal(); return; }
+    g.status = 'loading'; renderGallery();
+    if(galleryLightboxState.open && galleryLightboxState.id === gId) renderGalleryLightbox();
+    try {
+      var instruction = 'Vẽ một hình minh hoạ chất lượng cao theo mô tả sau. CHỈ vẽ hình ảnh, tuyệt đối không thêm chữ, watermark hay chú thích nào trong ảnh.';
+      var parts = [{ text: instruction + '\n\n' + promptText }];
+      if(opts.editPrompt && g.image){
+        parts.push({ text: 'Chỉnh sửa ảnh vừa tạo theo yêu cầu sau, giữ nguyên bố cục trừ khi được yêu cầu đổi khác: ' + opts.editPrompt });
+        parts.push({ inline_data: dataUrlToInline(g.image.dataUrl) });
+      }
+      var result = await callGemini(parts);
+      g.image = result; g.status = 'done'; g.errorMsg = '';
+    } catch(err){
+      console.error(err);
+      g.status = 'error'; g.errorMsg = (err && err.message) || 'Lỗi không xác định';
+      toast('Lỗi tạo ảnh: ' + g.errorMsg, true);
+    }
+    renderGallery();
+    if(galleryLightboxState.open && galleryLightboxState.id === gId) renderGalleryLightbox();
+    scheduleHistoryPush();
   }
-  var playing = false;
-  document.getElementById('btnPlayDemo').addEventListener('click', function(){
-    playing = !playing; this.textContent = playing ? '❚❚' : '▶';
-    toast(playing ? 'Demo phát thử (chưa có audio thật)' : 'Đã tạm dừng');
+
+  function downloadGalleryImage(gId){
+    var idx = state.gallery.findIndex(function(g){ return g.id === gId; });
+    var g = state.gallery[idx];
+    if(!g || !g.image) return;
+    var ext = (g.image.mime.split('/')[1] || 'png').replace('jpeg','jpg');
+    triggerDownload(dataUrlToBlob(g.image.dataUrl), 'anh-' + sanitizeFileLabel(String(idx + 1), idx + 1) + '.' + ext);
+  }
+
+  document.getElementById('btnGenGalleryImage').addEventListener('click', function(){
+    var promptText = (state.tabs.image || '').trim();
+    if(!promptText){ toast('Hãy nhập mô tả hình ảnh muốn tạo trước'); return; }
+    if(!getApiKey()){ toast('Chưa có API key Gemini — bấm 🔑 để nhập'); openKeyModal(); return; }
+    var item = newGalleryItem();
+    state.gallery.push(item);
+    renderGallery(); scheduleHistoryPush();
+    generateGalleryImage(item.id);
+  });
+
+  imgGrid.addEventListener('click', function(e){
+    var btn = e.target.closest('[data-action]');
+    if(!btn) return;
+    var action = btn.getAttribute('data-action');
+    var gId = btn.getAttribute('data-g');
+    if(action === 'gdel'){
+      if(!confirm('Xoá ảnh này?')) return;
+      state.gallery = state.gallery.filter(function(g){ return g.id !== gId; });
+      renderGallery(); scheduleHistoryPush();
+    } else if(action === 'gregen'){
+      generateGalleryImage(gId);
+    } else if(action === 'gview'){
+      openGalleryLightbox(gId);
+    } else if(action === 'gdownload'){
+      downloadGalleryImage(gId);
+    }
+  });
+
+  document.getElementById('btnDownloadAll').addEventListener('click', downloadGalleryZip);
+  async function downloadGalleryZip(){
+    var items = state.gallery.map(function(g, i){ return { idx: i + 1, g: g }; }).filter(function(o){ return o.g.image; });
+    if(!items.length){ toast('Chưa có ảnh nào để tải'); return; }
+    if(typeof JSZip === 'undefined'){ toast('Không tải được thư viện nén file (cần kết nối mạng)'); return; }
+    var zip = new JSZip();
+    items.forEach(function(o){
+      var ext = (o.g.image.mime.split('/')[1] || 'png').replace('jpeg','jpg');
+      var name = 'anh-' + sanitizeFileLabel(String(o.idx), o.idx);
+      zip.file(name + '.' + ext, o.g.image.dataUrl.split(',')[1], { base64: true });
+    });
+    var blob = await zip.generateAsync({ type: 'blob' });
+    triggerDownload(blob, slugify(state.projectName) + '-anh-tu-do.zip');
+    toast('Đã tải file zip gồm ' + items.length + ' ảnh');
+  }
+
+  // ---- gallery lightbox (xem full / tinh chỉnh / tạo lại cho tab Tạo ảnh) ----
+  var galleryLightboxOverlay = document.getElementById('galleryLightboxOverlay');
+  var galleryLightboxImg = document.getElementById('galleryLightboxImg');
+  var galleryLightboxRefineInput = document.getElementById('galleryLightboxRefineInput');
+  var galleryLightboxState = { open: false, id: null };
+
+  function galleryItemsWithImage(){ return state.gallery.filter(function(g){ return g.image; }); }
+  function openGalleryLightbox(gId){
+    var g = state.gallery.find(function(x){ return x.id === gId; });
+    if(!g || !g.image) return;
+    galleryLightboxState.open = true; galleryLightboxState.id = gId;
+    galleryLightboxRefineInput.value = '';
+    galleryLightboxOverlay.classList.add('open');
+    renderGalleryLightbox();
+  }
+  function closeGalleryLightbox(){ galleryLightboxState.open = false; galleryLightboxOverlay.classList.remove('open'); }
+  function renderGalleryLightbox(){
+    var g = state.gallery.find(function(x){ return x.id === galleryLightboxState.id; });
+    if(!g || !g.image){ closeGalleryLightbox(); return; }
+    galleryLightboxImg.src = g.image.dataUrl;
+  }
+  function navGalleryLightbox(dir){
+    var list = galleryItemsWithImage();
+    if(list.length < 2) return;
+    var i = list.findIndex(function(g){ return g.id === galleryLightboxState.id; });
+    var next = list[(i + dir + list.length) % list.length];
+    galleryLightboxState.id = next.id;
+    galleryLightboxRefineInput.value = '';
+    renderGalleryLightbox();
+  }
+  document.getElementById('galleryLightboxCloseBtn').addEventListener('click', closeGalleryLightbox);
+  document.getElementById('galleryLightboxPrevBtn').addEventListener('click', function(e){ e.stopPropagation(); navGalleryLightbox(-1); });
+  document.getElementById('galleryLightboxNextBtn').addEventListener('click', function(e){ e.stopPropagation(); navGalleryLightbox(1); });
+  document.getElementById('galleryLightboxStage').addEventListener('click', function(e){
+    if(e.target.closest('.lightbox-nav-btn') || e.target.closest('.lightbox-close')) return;
+    var rect = this.getBoundingClientRect();
+    navGalleryLightbox((e.clientX - rect.left) < rect.width / 2 ? -1 : 1);
+  });
+  galleryLightboxOverlay.addEventListener('click', function(e){ if(e.target === galleryLightboxOverlay) closeGalleryLightbox(); });
+  document.getElementById('galleryLightboxDownloadBtn').addEventListener('click', function(){ if(galleryLightboxState.id) downloadGalleryImage(galleryLightboxState.id); });
+  document.getElementById('galleryLightboxRegenBtn').addEventListener('click', function(){ if(galleryLightboxState.id) generateGalleryImage(galleryLightboxState.id); });
+  document.getElementById('galleryLightboxRefineBtn').addEventListener('click', function(){
+    var v = galleryLightboxRefineInput.value.trim();
+    if(!v){ toast('Nhập nội dung muốn tinh chỉnh trước'); return; }
+    if(galleryLightboxState.id) generateGalleryImage(galleryLightboxState.id, { editPrompt: v });
+  });
+  window.addEventListener('keydown', function(e){
+    if(!galleryLightboxState.open) return;
+    if(e.key === 'Escape') closeGalleryLightbox();
+    else if(e.key === 'ArrowLeft') navGalleryLightbox(-1);
+    else if(e.key === 'ArrowRight') navGalleryLightbox(1);
   });
 
   // ---------------- boot ----------------

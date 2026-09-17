@@ -18,12 +18,13 @@
 - Lưu/Mở dự án ra file `.json` thật trên máy (Ctrl+S / Ctrl+O)
 - Hoàn tác / Làm lại nhiều bước (Ctrl+Z / Ctrl+Shift+Z)
 - Nhập kịch bản từ file Excel (.xlsx/.xls)
-- Gọi API Gemini thật để tạo ảnh, giữ đồng nhất ngoại hình nhân vật qua ảnh tham chiếu
+- Gọi API Gemini thật để tạo ảnh (tab Kịch bản & Prompt), giữ đồng nhất ngoại hình nhân vật qua ảnh tham chiếu
+- Tab **Tạo ảnh** (riêng, ngoài bảng phân cảnh): tạo ảnh tự do từ một mô tả bất kỳ bằng model Nano Banana, có xem full/tạo lại/tải từng ảnh và tải toàn bộ dạng `.zip`
+- Tab **Giọng nói**: gọi API chuyển văn bản thành giọng đọc thật của Gemini (chọn 1 trong 10 giọng có sẵn), nghe thử và tải file `.wav`
 - Zoom giao diện bằng Ctrl+cuộn chuột
 
-## Chưa hoạt động (còn là bản demo/giao diện mẫu)
+## Lưu ý quan trọng về tab Giọng nói
 
-- Tab **Giọng nói**: chưa nối API tạo giọng đọc thật
-- Tab **Tạo ảnh** (riêng, ngoài bảng phân cảnh): chỉ minh hoạ bố cục nút bấm
+Gemini vừa đổi sang một API tạo giọng nói mới (`/v1beta/interactions`) song song với cách gọi cũ qua `generateContent`. App đã cài cả 2 cách gọi (thử cách mới trước, tự động chuyển sang cách cũ nếu cách mới không dùng được), nhưng **tính năng này chưa được kiểm thử với API key thật** vì môi trường tạo ra app không gọi được ra Internet thật để test. Nếu bấm "🎙️ Tạo giọng nói" mà báo lỗi, hãy chụp lại đúng nội dung lỗi hiện ra để được vá tiếp — khả năng cao chỉ là sai tên model/định dạng request theo phiên bản API mới nhất.
 
-Cần API key Gemini của riêng bạn để dùng chức năng tạo ảnh — key chỉ lưu trên trình duyệt của bạn, không gửi cho ai khác ngoài Google.
+Cần API key Gemini của riêng bạn để dùng các chức năng tạo ảnh/giọng nói — key chỉ lưu trên trình duyệt của bạn, không gửi cho ai khác ngoài Google.
