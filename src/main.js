@@ -92,6 +92,7 @@
     characters: [],
     scenes: [],
     stylePrompt: "",
+    storyContent: "",
     voice: { name: "Kore", audio: null, status: "idle", errorMsg: "" },
     gallery: [],
     imageProvider: "gemini" // "gemini" (trả phí, chất lượng cao, đồng nhất nhân vật tốt) | "pollinations" (miễn phí, chậm hơn, không tham chiếu ảnh nhân vật)
@@ -111,6 +112,7 @@
   var projectNameInput = document.getElementById('projectNameInput');
   var slugPreview = document.getElementById('slugPreview');
   var stylePromptInput = document.getElementById('stylePromptInput');
+  var storyContentInput = document.getElementById('storyContentInput');
 
   // ================= CHARACTERS =================
   var charList = document.getElementById('charList');
@@ -539,6 +541,91 @@
     }
   }
 
+  // ---------------- AI tự động chia nội dung/câu chuyện thành nhiều phân đoạn ----------------
+  // Người dùng chỉ cần gõ nội dung (vd "An Nhiên đi tập gym") vào ô "Nội dung / câu chuyện" — AI sẽ tự
+  // đọc, chia thành từng phân đoạn hợp lý về mặt hình ảnh, và tự viết luôn Mô tả bối cảnh cho từng phân đoạn đó
+  // (không cần người dùng tự thêm từng dòng hay tự gõ tay prompt).
+  function buildAutoSplitRequest(storyText){
+    var style = (state.stylePrompt && state.stylePrompt.trim()) || '';
+    var chars = state.characters.map(function(c){
+      return (c.name || '').trim() ? (c.name.trim() + (c.description ? ' — ' + c.description : '')) : null;
+    }).filter(Boolean);
+    var lines = [];
+    lines.push('Bạn là trợ lý dựng kịch bản phân cảnh (storyboard) cho một AI vẽ ảnh minh hoạ truyện/video.');
+    if(style) lines.push('Phong cách hình ảnh chung cần giữ xuyên suốt: ' + style);
+    if(chars.length) lines.push('Danh sách nhân vật đã có sẵn (nếu nội dung nhắc đúng tên nhân vật nào trong danh sách này thì dùng lại chính xác tên đó trong lời dẫn/mô tả): ' + chars.join('; '));
+    lines.push('Nội dung/câu chuyện cần chia phân đoạn:\n"""\n' + storyText.trim() + '\n"""');
+    lines.push('Hãy chia nội dung trên thành các phân đoạn (scene) hợp lý về mặt hình ảnh — mỗi phân đoạn là một khoảnh khắc/hành động đáng vẽ thành một tấm ảnh minh hoạ riêng (thường 3-12 phân đoạn tuỳ độ dài nội dung, không chia quá vụn hoặc quá gộp).');
+    lines.push('CHỈ trả về đúng một mảng JSON hợp lệ, không kèm markdown code fence, không giải thích gì thêm ngoài JSON. Mỗi phần tử trong mảng có đúng các khoá: "label" (số thứ tự bắt đầu từ 1, dạng chuỗi), "vi" (nội dung/lời dẫn của phân đoạn đó bằng tiếng Việt, 1-2 câu), "promptName" (tóm tắt cực ngắn 3-6 chữ), "setting" (mô tả bối cảnh chi tiết bằng tiếng Việt dùng để vẽ ảnh: không gian, hành động, biểu cảm nhân vật, ánh sáng, góc máy).');
+    lines.push('Ví dụ đúng định dạng: [{"label":"1","vi":"...","promptName":"...","setting":"..."},{"label":"2","vi":"...","promptName":"...","setting":"..."}]');
+    return lines.join('\n');
+  }
+
+  function parseAutoSplitResponse(text){
+    var cleaned = String(text || '').trim();
+    var fenceMatch = /```(?:json)?\s*([\s\S]*?)```/i.exec(cleaned);
+    if(fenceMatch) cleaned = fenceMatch[1].trim();
+    var start = cleaned.indexOf('[');
+    var end = cleaned.lastIndexOf(']');
+    if(start === -1 || end === -1 || end < start) throw new Error('Không đọc được danh sách phân đoạn từ phản hồi của AI');
+    var arr;
+    try { arr = JSON.parse(cleaned.slice(start, end + 1)); }
+    catch(e){ throw new Error('Phản hồi của AI không đúng định dạng JSON'); }
+    if(!Array.isArray(arr) || !arr.length) throw new Error('AI không trả về phân đoạn nào');
+    return arr;
+  }
+
+  // Nếu nội dung phân đoạn có nhắc đúng tên 1 nhân vật đã thêm sẵn, tự động chọn nhân vật đó cho phân đoạn
+  // để giữ đồng nhất ngoại hình khi tạo ảnh — người dùng không cần tự chọn lại bằng tay.
+  function detectCharacterIdsInText(text){
+    var lower = String(text || '').toLowerCase();
+    if(!lower) return [];
+    return state.characters.filter(function(c){
+      var name = (c.name || '').trim().toLowerCase();
+      return name && lower.indexOf(name) > -1;
+    }).map(function(c){ return c.id; });
+  }
+
+  var autoSplitLoading = false;
+  async function autoSplitStoryIntoScenes(){
+    if(autoSplitLoading) return;
+    var storyText = (state.storyContent || '').trim();
+    if(!storyText){ toast('Hãy nhập nội dung/câu chuyện vào ô "Nội dung / câu chuyện" trước'); return; }
+    var replace = state.scenes.length > 0
+      ? confirm('Đã có ' + state.scenes.length + ' phân đoạn.\nOK = THAY THẾ toàn bộ bằng các phân đoạn AI vừa chia từ nội dung.\nCancel = THÊM NỐI TIẾP vào cuối danh sách.')
+      : true;
+    var btn = document.getElementById('btnAutoSplitScenes');
+    autoSplitLoading = true;
+    if(btn){ btn.disabled = true; btn.textContent = '⏳ AI đang chia phân đoạn…'; }
+    try {
+      var raw = await callGeminiText(buildAutoSplitRequest(storyText));
+      var arr = parseAutoSplitResponse(raw);
+      var newScenesArr = arr.map(function(item, i){
+        var combinedText = [item && item.vi, item && item.promptName, item && item.setting].filter(Boolean).join(' ');
+        return {
+          id: uid('s'),
+          sceneLabel: (item && item.label != null && String(item.label).trim()) ? String(item.label).trim() : String(i + 1),
+          lang1: "",
+          vi: String((item && item.vi) || ''),
+          promptName: String((item && item.promptName) || ''),
+          setting: String((item && item.setting) || ''),
+          characterIds: detectCharacterIdsInText(combinedText),
+          image: null, status: 'idle', errorMsg: ""
+        };
+      });
+      state.scenes = replace ? newScenesArr : state.scenes.concat(newScenesArr);
+      renderScenes(); scheduleHistoryPush();
+      toast('AI đã chia thành ' + newScenesArr.length + ' phân đoạn' + (replace ? ' (thay thế)' : ' (thêm nối tiếp)') + ' — có thể bấm "🎨" từng dòng hoặc "✨ Tạo ảnh hàng loạt" để vẽ ảnh ngay');
+    } catch(err){
+      console.error('Lỗi AI chia phân đoạn', err);
+      toast('Lỗi AI chia phân đoạn: ' + ((err && err.message) || 'không xác định'), true);
+    } finally {
+      autoSplitLoading = false;
+      if(btn){ btn.disabled = false; btn.textContent = '✂️ AI tự động chia phân đoạn'; }
+    }
+  }
+  document.getElementById('btnAutoSplitScenes').addEventListener('click', autoSplitStoryIntoScenes);
+
   // ---------------- Gemini TTS (text-to-speech) client ----------------
   function extractSampleRate(mimeStr){
     var m = /rate=(\d+)/.exec(mimeStr || '');
@@ -838,6 +925,7 @@
     projectNameInput.classList.toggle('has-value', state.projectName.trim().length > 0);
     slugPreview.textContent = slugify(state.projectName) + '.json';
     stylePromptInput.value = state.stylePrompt || '';
+    storyContentInput.value = state.storyContent || '';
     document.querySelectorAll('[data-tab-store]').forEach(function(el){ el.value = state.tabs[el.getAttribute('data-tab-store')] || ""; });
     renderCharacters();
     renderScenes();
@@ -882,6 +970,10 @@
   });
   stylePromptInput.addEventListener('input', function(){
     state.stylePrompt = stylePromptInput.value;
+    scheduleHistoryPush();
+  });
+  storyContentInput.addEventListener('input', function(){
+    state.storyContent = storyContentInput.value;
     scheduleHistoryPush();
   });
 
@@ -972,6 +1064,7 @@
     state.tabs = Object.assign({ voice: "", image: "" }, proj.tabs || {});
     state.characters = Array.isArray(proj.characters) ? proj.characters : [];
     state.stylePrompt = proj.stylePrompt || "";
+    state.storyContent = proj.storyContent || "";
     state.scenes = Array.isArray(proj.scenes) ? proj.scenes.map(function(s, i){
       return {
         id: s.id || uid('s'),
