@@ -466,6 +466,7 @@
               <select class="field-input voice-select" id="voiceNameSelect"></select>
             </label>
             <button class="btn ghost" id="btnPreviewVoice" title="Nghe thử đoạn mẫu ~100 ký tự với giọng đang chọn">🔊 Nghe thử giọng này</button>
+            <button class="btn ghost" id="btnPreloadAllVoices" title="Tạo sẵn mẫu cho cả 10 giọng, các lần nghe thử sau phát ngay không phải chờ">⏬ Tải trước tất cả giọng</button>
             <button class="btn primary" id="btnGenVoice">🎙️ Tạo giọng nói</button>
           </div>
           <audio id="voicePreviewAudioEl" controls style="display:none;width:100%;margin-top:2px;"></audio>
@@ -475,7 +476,7 @@
             <button class="btn ghost icon-only" id="btnDownloadVoice" title="Tải file âm thanh">⬇</button>
           </div>
           <div class="err-hint block-err" id="voiceErrorHint" style="display:none;"></div>
-          <div class="hint-note">⚙️ Cần API key Gemini (bấm 🔑). Tính năng gọi model chuyển văn bản thành giọng nói thật của Gemini — hoạt động tốt nhất với đoạn văn bản dưới ~2000 ký tự mỗi lần tạo. Đổi giọng ở trên rồi bấm "🔊 Nghe thử giọng này" để so sánh nhanh trước khi tạo cả kịch bản.</div>
+          <div class="hint-note">⚙️ Cần API key Gemini (bấm 🔑). Tính năng gọi model chuyển văn bản thành giọng nói thật của Gemini — hoạt động tốt nhất với đoạn văn bản dưới ~2000 ký tự mỗi lần tạo. Bấm "⏬ Tải trước tất cả giọng" một lần (mất chút thời gian ban đầu) để tạo sẵn mẫu cho cả 10 giọng — sau đó đổi giọng và bấm "🔊 Nghe thử giọng này" sẽ phát ngay lập tức, không phải chờ.</div>
         </div>
       </section>
 
@@ -1185,22 +1186,33 @@
   });
 
   // ---- nghe thử nhanh từng giọng (đoạn mẫu ~100 ký tự, không lưu vào dự án) ----
+  // Mỗi giọng chỉ gọi API 1 lần rồi lưu tạm trong bộ nhớ (voicePreviewCache) — bấm lại cùng giọng hoặc bấm "Tải trước tất cả"
+  // xong thì các lần nghe thử sau phát ngay lập tức, không phải chờ gọi mạng lại.
   var VOICE_PREVIEW_TEXT = 'Xin chào, đây là giọng đọc mẫu để bạn tham khảo trước khi chọn cho toàn bộ kịch bản của mình.';
+  var voicePreviewCache = {}; // { voiceName: {dataUrl, mime} }
   var btnPreviewVoice = document.getElementById('btnPreviewVoice');
+  var btnPreloadAllVoices = document.getElementById('btnPreloadAllVoices');
   var voicePreviewAudioEl = document.getElementById('voicePreviewAudioEl');
   var voicePreviewErrorHint = document.getElementById('voicePreviewErrorHint');
+
+  function playVoicePreview(dataUrl){
+    voicePreviewAudioEl.src = dataUrl;
+    voicePreviewAudioEl.style.display = 'block';
+    voicePreviewAudioEl.play().catch(function(){});
+  }
+
   btnPreviewVoice.addEventListener('click', async function(){
     var voiceName = document.getElementById('voiceNameSelect').value;
-    if(!getApiKey()){ toast('Chưa có API key Gemini — bấm 🔑 để nhập'); openKeyModal(); return; }
     voicePreviewErrorHint.style.display = 'none';
+    if(voicePreviewCache[voiceName]){ playVoicePreview(voicePreviewCache[voiceName].dataUrl); return; }
+    if(!getApiKey()){ toast('Chưa có API key Gemini — bấm 🔑 để nhập'); openKeyModal(); return; }
     btnPreviewVoice.disabled = true;
     var originalLabel = btnPreviewVoice.textContent;
     btnPreviewVoice.textContent = '⏳ Đang tạo mẫu…';
     try {
       var result = await callGeminiTTS(VOICE_PREVIEW_TEXT, voiceName);
-      voicePreviewAudioEl.src = result.dataUrl;
-      voicePreviewAudioEl.style.display = 'block';
-      voicePreviewAudioEl.play().catch(function(){});
+      voicePreviewCache[voiceName] = result;
+      playVoicePreview(result.dataUrl);
     } catch(err){
       console.error(err);
       voicePreviewErrorHint.textContent = 'Lỗi tạo mẫu nghe thử: ' + ((err && err.message) || 'không xác định');
@@ -1209,6 +1221,32 @@
     }
     btnPreviewVoice.disabled = false;
     btnPreviewVoice.textContent = originalLabel;
+  });
+
+  btnPreloadAllVoices.addEventListener('click', async function(){
+    if(!getApiKey()){ toast('Chưa có API key Gemini — bấm 🔑 để nhập'); openKeyModal(); return; }
+    var todo = TTS_VOICES.filter(function(v){ return !voicePreviewCache[v]; });
+    if(!todo.length){ toast('Đã tải trước sẵn cả 10 giọng — bấm "Nghe thử" là phát ngay'); return; }
+    btnPreloadAllVoices.disabled = true; btnPreviewVoice.disabled = true;
+    var total = todo.length, done = 0;
+    function updateProgress(){ btnPreloadAllVoices.textContent = '⏳ Đang tải trước… (' + done + '/' + total + ')'; }
+    updateProgress();
+    var PRELOAD_CONCURRENCY = 3;
+    var nextIdx = 0;
+    async function worker(){
+      while(nextIdx < todo.length){
+        var v = todo[nextIdx++];
+        try { voicePreviewCache[v] = await callGeminiTTS(VOICE_PREVIEW_TEXT, v); }
+        catch(err){ console.error('Lỗi tải trước giọng ' + v, err); }
+        done++; updateProgress();
+      }
+    }
+    var workers = [];
+    for(var w = 0; w < Math.min(PRELOAD_CONCURRENCY, todo.length); w++){ workers.push(worker()); }
+    await Promise.all(workers);
+    btnPreloadAllVoices.disabled = false; btnPreviewVoice.disabled = false;
+    btnPreloadAllVoices.textContent = '⏬ Tải trước tất cả giọng';
+    toast('Đã tải trước xong — giờ bấm "Nghe thử" ở giọng nào cũng phát ngay lập tức');
   });
 
   async function generateSceneImage(sceneId, opts){
