@@ -407,10 +407,25 @@
   function getPollinationsToken(){ try { return (localStorage.getItem(POLLINATIONS_TOKEN_STORAGE) || '').trim(); } catch(e){ return ''; } }
 
   // ---------------- Pollinations.ai (nguồn tạo ảnh miễn phí, thay thế Gemini) ----------------
+  // Model ảnh miễn phí (flux) được huấn luyện chủ yếu bằng tiếng Anh nên hiểu prompt tiếng Việt rất kém,
+  // dễ ra ảnh lạc đề hoàn toàn so với mô tả. Tự dịch prompt sang tiếng Anh (dùng chính model text Gemini,
+  // miễn phí) trước khi gửi cho Pollinations giúp ảnh bám sát mô tả hơn hẳn — nếu dịch lỗi thì vẫn dùng
+  // nguyên bản tiếng Việt để không chặn hẳn việc tạo ảnh.
+  async function translatePromptToEnglishForImage(viText){
+    try {
+      var instruction = 'Dịch/diễn đạt lại đoạn mô tả ảnh sau đây sang tiếng Anh, viết thành một prompt vẽ ảnh (image generation prompt) chi tiết, tự nhiên, đúng ngữ pháp tiếng Anh, giữ nguyên toàn bộ ý nghĩa và chi tiết (bối cảnh, hành động, ánh sáng, góc máy, phong cách...). CHỈ trả về đúng đoạn tiếng Anh đã viết lại, không thêm lời dẫn, không đặt trong ngoặc kép, không markdown.\n\nĐoạn cần dịch:\n"""\n' + viText + '\n"""';
+      var translated = await callGeminiText(instruction);
+      return (translated && translated.trim()) ? translated.trim() : viText;
+    } catch(err){
+      console.warn('Không dịch được prompt sang tiếng Anh cho Pollinations, dùng nguyên bản', err);
+      return viText;
+    }
+  }
   async function callPollinationsImage(promptText){
     var token = getPollinationsToken();
     var seed = Math.floor(Math.random() * 1e9); // seed ngẫu nhiên để không nhận lại ảnh cũ trùng lặp
-    var url = POLLINATIONS_ENDPOINT + encodeURIComponent(promptText) +
+    var finalPrompt = await translatePromptToEnglishForImage(promptText);
+    var url = POLLINATIONS_ENDPOINT + encodeURIComponent(finalPrompt) +
       '?width=1024&height=1024&nologo=true&model=' + POLLINATIONS_MODEL + '&seed=' + seed;
     var headers = {};
     if(token) headers['Authorization'] = 'Bearer ' + token;
