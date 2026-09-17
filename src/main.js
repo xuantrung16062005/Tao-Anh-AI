@@ -120,6 +120,8 @@
   var charFileInput = document.getElementById('charFileInput');
   var pendingCharId = null;
 
+  var charDescLoading = {}; // { charId: true } — trạng thái đang gọi AI mô tả ngoại hình từ ảnh, chỉ dùng cho UI
+
   function renderCharacters(){
     if(!state.characters.length){
       charList.innerHTML = '<div class="hint-note">Chưa có nhân vật nào. Bấm "+ Thêm nhân vật" để bắt đầu upload ảnh mẫu.</div>';
@@ -148,6 +150,7 @@
           '<div>' +
             '<label style="font-size:11.5px;color:var(--ink-faint);display:block;margin-bottom:4px;">Đặc điểm cần đồng nhất</label>' +
             '<textarea class="field-textarea" data-action="desc" data-char="'+c.id+'" placeholder="Ví dụ: luôn mặc áo khoác da đen, tóc xoăn đỏ, quần rách gối…">'+escapeHtml(c.description)+'</textarea>' +
+            '<button type="button" class="btn ghost small ai-desc-btn" data-action="ai-desc" data-char="'+c.id+'" style="margin-top:6px" title="Dùng AI nhìn ảnh mẫu và tự viết mô tả ngoại hình chi tiết — giúp các nguồn tạo ảnh miễn phí (Cloudflare/Pollinations, vốn KHÔNG xem được ảnh mẫu) vẫn vẽ đúng ngoại hình nhân vật hơn nhờ đọc mô tả bằng chữ này" '+(charDescLoading[c.id]?'disabled':'')+'>'+(charDescLoading[c.id]?'⏳ AI đang mô tả…':'✨ AI mô tả ngoại hình từ ảnh')+'</button>' +
           '</div>' +
         '</div>' +
         '<div class="char-card-foot"><span class="char-count">'+c.images.length+'/5 ảnh'+(c.isDefault?' · Mặc định':'')+'</span></div>' +
@@ -195,6 +198,8 @@
     } else if(action === 'dropzone'){
       pendingCharId = charId;
       charFileInput.click();
+    } else if(action === 'ai-desc'){
+      describeCharacterAppearance(charId).catch(function(){});
     }
   });
   charList.addEventListener('input', function(e){
@@ -518,12 +523,15 @@
     return { dataUrl: 'data:' + mime + ';base64,' + imgPart.data, mime: mime };
   }
 
-  // ---------------- Gemini text (dùng để AI tự viết prompt "Mô tả bối cảnh") ----------------
-  async function callGeminiText(promptText){
+  // ---------------- Gemini text (dùng để AI tự viết prompt "Mô tả bối cảnh", và AI mô tả ngoại hình nhân vật từ ảnh) ----------------
+  // images (tuỳ chọn): mảng [{ mime_type, data(base64) }] — dùng khi cần Gemini "nhìn" ảnh (vd mô tả ngoại hình nhân vật).
+  async function callGeminiText(promptText, images){
+    var body = { text: promptText };
+    if(images && images.length) body.images = images;
     var res = await fetch(API_TEXT_ENDPOINT, {
       method: 'POST',
       headers: buildApiHeaders(),
-      body: JSON.stringify({ text: promptText })
+      body: JSON.stringify(body)
     });
     var json = await res.json().catch(function(){ return {}; });
     if(!res.ok){ throw new Error((json && json.error && json.error.message) || ('Lỗi HTTP ' + res.status)); }
@@ -532,6 +540,44 @@
     var text = parts.map(function(p){ return p.text || ''; }).join('').trim();
     if(!text) throw new Error('Không nhận được nội dung prompt từ Gemini (có thể đã bị chặn do chính sách nội dung).');
     return text;
+  }
+
+  // ---------------- AI mô tả ngoại hình nhân vật từ ảnh mẫu (dùng chữ để "thay thế" ảnh tham chiếu) ----------------
+  // Cloudflare/Pollinations (2 nguồn tạo ảnh miễn phí) KHÔNG nhận được ảnh mẫu của nhân vật — chỉ nhận được prompt
+  // dạng chữ (xem buildTextOnlyPrompt ở trên, vốn đã tự động chèn c.description vào prompt gửi đi). Vì vậy nếu
+  // c.description không đủ chi tiết, ảnh tạo ra dễ bị sai hoàn toàn so với ảnh mẫu. Nút "AI mô tả ngoại hình từ ảnh"
+  // nhờ Gemini "nhìn" trực tiếp (các) ảnh mẫu và tự viết ra một đoạn mô tả ngoại hình chi tiết bằng chữ, ghi thẳng
+  // vào ô "Đặc điểm cần đồng nhất" — từ đó mọi nơi dùng c.description (Gemini, Cloudflare, Pollinations, AI viết
+  // prompt phân cảnh, AI tự chia phân đoạn) đều tự động được hưởng lợi mà không cần sửa gì thêm.
+  function buildCharacterAppearanceDescribeRequest(){
+    return 'Hãy mô tả THẬT CHI TIẾT ngoại hình của nhân vật xuất hiện trong (các) ảnh sau, bằng tiếng Việt, để dùng làm mô tả tham chiếu cho một AI vẽ ảnh khác (AI đó KHÔNG nhìn thấy được ảnh gốc, chỉ đọc được đoạn mô tả này). ' +
+      'Tập trung vào các đặc điểm ổn định, xuất hiện lặp lại giữa các ảnh (nếu có nhiều ảnh): giới tính, độ tuổi ước lượng, kiểu dáng và màu tóc, hình dáng khuôn mặt, màu da, vóc dáng cơ thể, trang phục/phong cách ăn mặc thường thấy, và bất kỳ đặc điểm nhận diện riêng biệt nào (hình xăm, kính, sẹo, phụ kiện…). ' +
+      'CHỈ trả về đúng một đoạn mô tả liền mạch (khoảng 3-5 câu), không đánh số, không markdown, không nhắc đến việc "trong ảnh" hay "bức ảnh", không thêm lời dẫn hay giải thích nào khác.';
+  }
+
+  async function describeCharacterAppearance(charId){
+    if(charDescLoading[charId]) return;
+    var c = state.characters.find(function(x){ return x.id === charId; });
+    if(!c) return;
+    if(!c.images.length){ toast('Hãy tải ảnh mẫu cho nhân vật này trước, để AI có ảnh mà mô tả'); return; }
+    if(c.description && c.description.trim()){
+      if(!confirm('Nhân vật này đã có "Đặc điểm cần đồng nhất" — ghi đè bằng mô tả AI viết mới từ ảnh mẫu?')) return;
+    }
+    var images = c.images.slice(0, 5).map(function(im){ return dataUrlToInline(im.dataUrl); }).filter(Boolean);
+    charDescLoading[charId] = true; renderCharacters();
+    try {
+      var desc = await callGeminiText(buildCharacterAppearanceDescribeRequest(), images);
+      var stillThere = state.characters.find(function(x){ return x.id === charId; });
+      if(stillThere){ stillThere.description = desc; scheduleHistoryPush(); }
+      toast('AI đã mô tả xong ngoại hình nhân vật "' + (c.name || '(chưa đặt tên)') + '" — bạn có thể sửa lại nếu muốn');
+    } catch(err){
+      console.error('Lỗi AI mô tả ngoại hình nhân vật', err);
+      toast('Lỗi AI mô tả ngoại hình: ' + ((err && err.message) || 'không xác định'), true);
+      throw err;
+    } finally {
+      delete charDescLoading[charId];
+      renderCharacters();
+    }
   }
 
   function buildScenePromptGenRequest(s){
