@@ -61,10 +61,40 @@ Nếu chỉ muốn xem giao diện (không test được các nút gọi AI vì 
 4. Ở bước cấu hình project, vào **Environment Variables**, thêm:
    - `GEMINI_API_KEY` = API key Gemini của bạn (lấy tại [Google AI Studio](https://aistudio.google.com/apikey))
    - (tuỳ chọn) `GEMINI_IMAGE_MODEL`, `GEMINI_TEXT_MODEL`, `GEMINI_TTS_MODEL` nếu muốn đổi model mặc định.
+   - (tuỳ chọn, để dùng nguồn tạo ảnh miễn phí "Cloudflare AI" — chất lượng khá, tạo được nhiều ảnh song song, không cần thẻ tín dụng) `CLOUDFLARE_ACCOUNT_ID` và `CLOUDFLARE_API_TOKEN` — xem hướng dẫn lấy 2 giá trị này ở mục **"Lấy Cloudflare Account ID + API Token (miễn phí)"** bên dưới.
 5. Bấm **Deploy**. Vercel tự nhận diện `vercel.json` + `package.json`, chạy `npm run build`, deploy cả frontend lẫn 3 hàm `/api`.
 6. Từ lần sau, mỗi khi bạn `git push` lên nhánh `main`, Vercel tự động build & deploy bản mới — y hệt cách app YHCT của bạn đang hoạt động (mục **Deployments** trên GitHub/Vercel sẽ tăng dần).
 
 Sau khi deploy xong, bạn (và bất kỳ ai bạn chia sẻ URL) có thể dùng ngay toàn bộ tính năng tạo ảnh/giọng nói mà **không cần tự nhập API key** — vì key đã nằm sẵn trên server.
+
+## Lấy Cloudflare Account ID + API Token (miễn phí)
+
+Cloudflare Workers AI cho **10,000 "Neurons" miễn phí mỗi ngày** (không phải dùng thử 1 lần, mà là lặp lại mỗi ngày), đủ tạo hàng nghìn ảnh/ngày bằng model FLUX.1 [schnell] — không cần thẻ tín dụng. Đây là nguồn tạo ảnh miễn phí thứ 2 trong app (bên cạnh Pollinations), chất lượng khá hơn và **tạo được nhiều ảnh cùng lúc (song song)** vì đây là hạn mức riêng của tài khoản bạn, không bị giới hạn dùng chung như Pollinations ẩn danh.
+
+Nếu bạn không cần dùng nguồn ảnh này, có thể bỏ qua phần này — app vẫn chạy bình thường với Gemini/Pollinations.
+
+**Bước 1 — Tạo tài khoản Cloudflare miễn phí:**
+1. Vào [dash.cloudflare.com/sign-up](https://dash.cloudflare.com/sign-up) và đăng ký (chỉ cần email, không cần thẻ tín dụng).
+2. Xác nhận email và đăng nhập vào Cloudflare Dashboard.
+
+**Bước 2 — Lấy `CLOUDFLARE_ACCOUNT_ID`:**
+1. Trong Cloudflare Dashboard, chọn bất kỳ site/tài khoản nào ở trang chính (hoặc vào mục **Workers & Pages** ở menu bên trái).
+2. Ở khung bên phải trang **Workers & Pages** (hoặc trang tổng quan tài khoản), bạn sẽ thấy mục **Account ID** — đây chính là giá trị 32 ký tự cần copy.
+
+**Bước 3 — Tạo `CLOUDFLARE_API_TOKEN`:**
+1. Bấm vào biểu tượng tài khoản ở góc trên bên phải → **My Profile** → tab **API Tokens**.
+2. Bấm **Create Token**.
+3. Chọn mẫu có sẵn **"Workers AI"** (nếu có) và bấm **Use template**; nếu không thấy mẫu này, chọn **Create Custom Token** rồi cấp quyền: **Account → Workers AI → Edit**.
+4. Bấm **Continue to summary** → **Create Token**.
+5. Copy đoạn token hiện ra (chỉ hiện **1 lần duy nhất**, nên copy và lưu lại ngay).
+
+**Bước 4 — Thêm vào Vercel:**
+1. Vào project `tao-anh-ai` trên Vercel → **Settings** → **Environment Variables**.
+2. Thêm biến `CLOUDFLARE_ACCOUNT_ID` = Account ID vừa lấy ở Bước 2.
+3. Thêm biến `CLOUDFLARE_API_TOKEN` = token vừa tạo ở Bước 3.
+4. Lưu lại, rồi vào tab **Deployments** → bấm **Redeploy** ở bản mới nhất (hoặc chỉ cần đợi lần `git push` kế tiếp) để Vercel áp dụng biến môi trường mới.
+
+Sau đó vào app, ở ô **"Nguồn tạo ảnh"**, chọn **"Miễn phí (Cloudflare AI, đẹp hơn, tạo song song)"** là dùng được ngay.
 
 ## Tính năng đã hoạt động thật
 
@@ -73,7 +103,8 @@ Sau khi deploy xong, bạn (và bất kỳ ai bạn chia sẻ URL) có thể dù
 - Hoàn tác / Làm lại nhiều bước (Ctrl+Z / Ctrl+Shift+Z)
 - Nhập kịch bản từ file Excel (.xlsx/.xls)
 - AI (Gemini) tự viết prompt "Mô tả bối cảnh" cho từng phân cảnh hoặc hàng loạt, dựa vào nội dung/thoại và nhân vật đã chọn
-- Gọi API Gemini thật để tạo ảnh (tab Kịch bản & Prompt), giữ đồng nhất ngoại hình nhân vật qua ảnh tham chiếu — hoặc dùng nguồn ảnh miễn phí Pollinations song song
+- **AI tự động chia phân đoạn**: chỉ cần gõ nội dung/câu chuyện vào ô "Nội dung / câu chuyện", AI tự tách thành nhiều phân cảnh (lời thoại + tên prompt ngắn + mô tả bối cảnh chi tiết) và tự chọn đúng nhân vật đã có trong tab "Nhân vật" nếu nội dung có nhắc tên
+- Gọi API Gemini thật để tạo ảnh (tab Kịch bản & Prompt), giữ đồng nhất ngoại hình nhân vật qua ảnh tham chiếu — hoặc dùng 1 trong 2 nguồn ảnh miễn phí: **Cloudflare AI** (chất lượng khá hơn, tạo được nhiều ảnh song song) hoặc **Pollinations** (tự động dịch prompt sang tiếng Anh trước khi tạo để ảnh đúng nội dung hơn, chạy lần lượt từng ảnh do giới hạn dùng chung)
 - Tab **Tạo ảnh** riêng: tạo ảnh tự do từ mô tả bất kỳ, xem full/tạo lại/tải từng ảnh và tải toàn bộ dạng `.zip`
 - Tab **Giọng nói**: chuyển văn bản thành giọng đọc thật của Gemini (10 giọng có sẵn), tự động đợi & thử lại khi bị giới hạn hạn mức, tải file `.wav`
 - Zoom giao diện bằng Ctrl+cuộn chuột
