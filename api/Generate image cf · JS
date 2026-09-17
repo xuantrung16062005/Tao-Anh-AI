@@ -9,8 +9,10 @@ export default async function handler(req, res) {
     res.status(405).json({ error: { message: 'Chỉ hỗ trợ POST' } });
     return;
   }
-  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-  const apiToken = process.env.CLOUDFLARE_API_TOKEN;
+  // .trim() phòng trường hợp giá trị dán vào Vercel bị dính khoảng trắng/xuống dòng thừa (lỗi copy-paste rất hay gặp,
+  // và Cloudflare sẽ trả về lỗi khó hiểu như "404" thay vì báo rõ sai định dạng nếu URL bị dính ký tự thừa).
+  const accountId = (process.env.CLOUDFLARE_ACCOUNT_ID || '').trim();
+  const apiToken = (process.env.CLOUDFLARE_API_TOKEN || '').trim();
   if (!accountId || !apiToken) {
     res.status(400).json({ error: { message: 'Thiếu cấu hình Cloudflare: chưa có biến môi trường CLOUDFLARE_ACCOUNT_ID và/hoặc CLOUDFLARE_API_TOKEN trên server (xem README để lấy 2 giá trị này từ dashboard Cloudflare, miễn phí).' } });
     return;
@@ -33,10 +35,16 @@ export default async function handler(req, res) {
         })
       }
     );
-    const json = await upstream.json().catch(() => ({}));
+    const rawText = await upstream.text();
+    let json = {};
+    try { json = JSON.parse(rawText); } catch (e) { /* Cloudflare trả về không phải JSON (vd trang 404 dạng HTML) */ }
     if (!upstream.ok || !json || json.success === false) {
-      const cfMsg = (json && json.errors && json.errors[0] && json.errors[0].message) || ('Lỗi HTTP ' + upstream.status + ' từ Cloudflare');
-      res.status(upstream.status || 502).json({ error: { message: cfMsg } });
+      // Kèm thêm vài chi tiết chẩn đoán (độ dài accountId, model đang dùng, và nguyên văn phản hồi của Cloudflare
+      // nếu không có errors[].message rõ ràng) để soi ra ngay nếu accountId/token bị dính khoảng trắng thừa hoặc sai.
+      var errFromCf = json && json.errors && json.errors[0] && json.errors[0].message;
+      var cfMsg = errFromCf || (rawText ? String(rawText).replace(/\s+/g, ' ').trim().slice(0, 200) : ('Lỗi HTTP ' + upstream.status));
+      var diag = ' [chẩn đoán: accountId dài ' + accountId.length + ' ký tự, model=' + CF_IMAGE_MODEL + ', HTTP ' + upstream.status + ']';
+      res.status(upstream.status || 502).json({ error: { message: 'Cloudflare trả về: ' + cfMsg + diag } });
       return;
     }
     const imageBase64 = json.result && json.result.image;
