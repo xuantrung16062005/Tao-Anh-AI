@@ -1,0 +1,51 @@
+// Proxy tạo ảnh miễn phí bằng Cloudflare Workers AI (model FLUX.1 [schnell]) — thay thế cho Pollinations,
+// chất lượng tốt hơn và cho phép tạo nhiều ảnh song song cùng lúc (vì đây là hạn mức riêng của tài khoản bạn,
+// không bị giới hạn dùng chung như Pollinations ẩn danh).
+// Cần 2 biến môi trường trên Vercel: CLOUDFLARE_ACCOUNT_ID và CLOUDFLARE_API_TOKEN (xem README để lấy 2 giá trị này).
+const CF_IMAGE_MODEL = process.env.CLOUDFLARE_IMAGE_MODEL || '@cf/black-forest-labs/flux-1-schnell';
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: { message: 'Chỉ hỗ trợ POST' } });
+    return;
+  }
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+  const apiToken = process.env.CLOUDFLARE_API_TOKEN;
+  if (!accountId || !apiToken) {
+    res.status(400).json({ error: { message: 'Thiếu cấu hình Cloudflare: chưa có biến môi trường CLOUDFLARE_ACCOUNT_ID và/hoặc CLOUDFLARE_API_TOKEN trên server (xem README để lấy 2 giá trị này từ dashboard Cloudflare, miễn phí).' } });
+    return;
+  }
+  const prompt = req.body && req.body.prompt;
+  if (!prompt || !String(prompt).trim()) {
+    res.status(400).json({ error: { message: 'Thiếu nội dung prompt để tạo ảnh' } });
+    return;
+  }
+  try {
+    const upstream = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${CF_IMAGE_MODEL}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiToken },
+        body: JSON.stringify({
+          prompt: String(prompt).slice(0, 2048),
+          seed: Math.floor(Math.random() * 1e9),
+          steps: 8
+        })
+      }
+    );
+    const json = await upstream.json().catch(() => ({}));
+    if (!upstream.ok || !json || json.success === false) {
+      const cfMsg = (json && json.errors && json.errors[0] && json.errors[0].message) || ('Lỗi HTTP ' + upstream.status + ' từ Cloudflare');
+      res.status(upstream.status || 502).json({ error: { message: cfMsg } });
+      return;
+    }
+    const imageBase64 = json.result && json.result.image;
+    if (!imageBase64) {
+      res.status(502).json({ error: { message: 'Cloudflare không trả về ảnh (phản hồi thiếu trường result.image)' } });
+      return;
+    }
+    res.status(200).json({ image: imageBase64 });
+  } catch (err) {
+    res.status(502).json({ error: { message: 'Không gọi được Cloudflare Workers AI: ' + (err && err.message) } });
+  }
+}
