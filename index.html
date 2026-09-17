@@ -199,6 +199,8 @@
   .voice-controls{ display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   .voice-select-label{ display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: var(--ink-muted); }
   select.voice-select{ padding: 8px 10px; min-width: 140px; cursor: pointer; }
+  .provider-select-label{ display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+  select.provider-select{ padding: 7px 10px; min-width: 220px; cursor: pointer; font-size: 12.5px; }
   .voice-player{ display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
   .voice-player audio{ flex: 1; min-width: 0; }
   .err-hint.block-err{ font-size: 12px; color: #dc2626; background: rgba(220,38,38,.08); border: 1px solid rgba(220,38,38,.25); border-radius: var(--radius-sm); padding: 8px 12px; }
@@ -236,6 +238,8 @@
   .key-row input{ flex: 1; min-width: 0; font-family: var(--font-mono); font-size: 13px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--ink); padding: 10px 12px; outline: none; }
   .key-row input:focus{ border-color: var(--primary-500); box-shadow: 0 0 0 3px rgba(34,197,94,.18); }
   .modal-note{ font-size: 12px; color: var(--ink-faint); line-height: 1.5; }
+  .modal-note a{ color: var(--primary-500); font-weight: 700; text-decoration: none; }
+  .modal-note a:hover{ text-decoration: underline; }
   .modal-actions{ display: flex; justify-content: flex-end; gap: 8px; }
   .key-status{ font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
   .key-status .dot{ width: 7px; height: 7px; border-radius: 50%; background: var(--ink-faint); }
@@ -422,10 +426,16 @@
 
         <div class="card workspace-card">
           <div class="scene-toolbar">
-            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
               <button class="btn ghost" id="btnAddScene">+ Thêm phân đoạn</button>
               <button class="btn ghost" id="btnImportExcel">📥 Nhập từ Excel</button>
               <button class="btn ghost" id="btnDownloadAllScenes" title="Tải toàn bộ ảnh phân cảnh dạng zip, đặt tên theo cột Scene">⬇ Tải tất cả ảnh</button>
+              <label class="provider-select-label">Nguồn tạo ảnh
+                <select class="field-input provider-select" id="sceneProviderSelect">
+                  <option value="gemini">Gemini (trả phí, đồng nhất nhân vật tốt)</option>
+                  <option value="pollinations">Miễn phí (Pollinations, chậm hơn)</option>
+                </select>
+              </label>
             </div>
             <button class="btn primary" id="btnGenAll">✨ Tạo ảnh hàng loạt</button>
           </div>
@@ -455,14 +465,17 @@
             <label class="voice-select-label">Giọng đọc
               <select class="field-input voice-select" id="voiceNameSelect"></select>
             </label>
+            <button class="btn ghost" id="btnPreviewVoice" title="Nghe thử đoạn mẫu ~100 ký tự với giọng đang chọn">🔊 Nghe thử giọng này</button>
             <button class="btn primary" id="btnGenVoice">🎙️ Tạo giọng nói</button>
           </div>
+          <audio id="voicePreviewAudioEl" controls style="display:none;width:100%;margin-top:2px;"></audio>
+          <div class="err-hint block-err" id="voicePreviewErrorHint" style="display:none;"></div>
           <div class="card voice-player" id="voicePlayerCard" style="display:none;">
             <audio id="voiceAudioEl" controls></audio>
             <button class="btn ghost icon-only" id="btnDownloadVoice" title="Tải file âm thanh">⬇</button>
           </div>
           <div class="err-hint block-err" id="voiceErrorHint" style="display:none;"></div>
-          <div class="hint-note">⚙️ Cần API key Gemini (bấm 🔑). Tính năng gọi model chuyển văn bản thành giọng nói thật của Gemini — hoạt động tốt nhất với đoạn văn bản dưới ~2000 ký tự mỗi lần tạo.</div>
+          <div class="hint-note">⚙️ Cần API key Gemini (bấm 🔑). Tính năng gọi model chuyển văn bản thành giọng nói thật của Gemini — hoạt động tốt nhất với đoạn văn bản dưới ~2000 ký tự mỗi lần tạo. Đổi giọng ở trên rồi bấm "🔊 Nghe thử giọng này" để so sánh nhanh trước khi tạo cả kịch bản.</div>
         </div>
       </section>
 
@@ -473,11 +486,17 @@
         </div>
         <div class="card workspace-card">
           <textarea class="workspace-input" data-tab-store="image" placeholder="Mô tả hình ảnh muốn tạo…" style="min-height:80px"></textarea>
-          <div style="display:flex;justify-content:flex-end;">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+            <label class="provider-select-label">Nguồn tạo ảnh
+              <select class="field-input provider-select" id="galleryProviderSelect">
+                <option value="gemini">Gemini (trả phí, chất lượng cao)</option>
+                <option value="pollinations">Miễn phí (Pollinations, chậm hơn)</option>
+              </select>
+            </label>
             <button class="btn primary" id="btnGenGalleryImage">✨ Tạo ảnh</button>
           </div>
           <div class="img-grid" id="imgGrid"></div>
-          <div class="hint-note">⚙️ Ảnh tạo ở đây dùng chung model Nano Banana, không tham chiếu nhân vật. Cần đồng nhất nhân vật/bối cảnh theo phân đoạn thì dùng tab "Kịch bản &amp; Prompt".</div>
+          <div class="hint-note">⚙️ Ảnh tạo ở đây dùng chung model Nano Banana (hoặc Pollinations nếu chọn miễn phí), không tham chiếu nhân vật. Cần đồng nhất nhân vật/bối cảnh theo phân đoạn thì dùng tab "Kịch bản &amp; Prompt".</div>
         </div>
       </section>
 
@@ -508,11 +527,20 @@
       </div>
     </div>
     <div class="key-status" id="keyStatus"><span class="dot"></span><span id="keyStatusText">Chưa có API key.</span></div>
-    <div class="modal-note">Key dùng cho toàn bộ chức năng tạo ảnh của App (tab Kịch bản &amp; Prompt, model Nano Banana). Key được lưu riêng trên trình duyệt này, không gửi cho ai khác ngoài Google khi tạo ảnh.</div>
+    <div class="modal-note">Key dùng cho toàn bộ chức năng tạo ảnh/giọng nói trả phí của App (model Nano Banana, Gemini TTS). Key được lưu riêng trên trình duyệt này, không gửi cho ai khác ngoài Google khi tạo.</div>
+    <hr style="border:none;border-top:1px solid var(--border);margin:14px 0;">
+    <div class="modal-field">
+      <label for="pollinationsTokenInput">Pollinations token (tuỳ chọn — dùng cho nguồn tạo ảnh miễn phí)</label>
+      <div class="key-row">
+        <input id="pollinationsTokenInput" type="password" placeholder="Dán token từ auth.pollinations.ai (để xoá logo)…" autocomplete="off" spellcheck="false">
+        <button class="btn ghost icon-only" id="togglePollinationsVisibility" title="Hiện/ẩn token">👁</button>
+      </div>
+    </div>
+    <div class="modal-note">Không bắt buộc: chọn nguồn "Miễn phí (Pollinations)" khi tạo ảnh vẫn dùng được ngay không cần token (ảnh sẽ có logo nhỏ ở góc). Đăng ký miễn phí tại <a href="https://auth.pollinations.ai" target="_blank" rel="noopener">auth.pollinations.ai</a>, lấy token dán vào đây để ảnh sạch, không có logo và được tạo nhanh hơn.</div>
     <div class="modal-actions">
       <button class="btn ghost" id="btnClearKey">Xoá key</button>
       <button class="btn ghost" id="btnCancelKey">Đóng</button>
-      <button class="btn primary" id="btnSaveKey">Lưu key</button>
+      <button class="btn primary" id="btnSaveKey">Lưu</button>
     </div>
   </div>
 </div>
@@ -572,6 +600,9 @@
   "use strict";
   var APP_NAME = "Verdant Studio";
   var KEY_STORAGE = 'vs_gemini_api_key';
+  var POLLINATIONS_TOKEN_STORAGE = 'vs_pollinations_token';
+  var POLLINATIONS_ENDPOINT = 'https://image.pollinations.ai/prompt/';
+  var POLLINATIONS_MODEL = 'flux';
   var GEMINI_MODEL = 'gemini-3.1-flash-image'; // "Nano Banana 2" — đổi sang 'gemini-3-pro-image' nếu cần chất lượng cao hơn
   var GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1/models/' + GEMINI_MODEL + ':generateContent';
   // Text-to-speech: thử API "interactions" mới trước, tự động rơi về generateContent kiểu cũ nếu không dùng được.
@@ -660,7 +691,8 @@
     scenes: [],
     stylePrompt: "",
     voice: { name: "Kore", audio: null, status: "idle", errorMsg: "" },
-    gallery: []
+    gallery: [],
+    imageProvider: "gemini" // "gemini" (trả phí, chất lượng cao, đồng nhất nhân vật tốt) | "pollinations" (miễn phí, chậm hơn, không tham chiếu ảnh nhân vật)
   };
 
   function newCharacter(){
@@ -963,6 +995,42 @@
 
   // ---------------- Gemini (Nano Banana) client ----------------
   function getApiKey(){ try { return (localStorage.getItem(KEY_STORAGE) || '').trim(); } catch(e){ return ''; } }
+  function getPollinationsToken(){ try { return (localStorage.getItem(POLLINATIONS_TOKEN_STORAGE) || '').trim(); } catch(e){ return ''; } }
+
+  // ---------------- Pollinations.ai (nguồn tạo ảnh miễn phí, thay thế Gemini) ----------------
+  async function callPollinationsImage(promptText){
+    var token = getPollinationsToken();
+    var seed = Math.floor(Math.random() * 1e9); // seed ngẫu nhiên để không nhận lại ảnh cũ trùng lặp
+    var url = POLLINATIONS_ENDPOINT + encodeURIComponent(promptText) +
+      '?width=1024&height=1024&nologo=true&model=' + POLLINATIONS_MODEL + '&seed=' + seed;
+    var headers = {};
+    if(token) headers['Authorization'] = 'Bearer ' + token;
+    var res = await fetch(url, { headers: headers });
+    if(!res.ok){ throw new Error('Lỗi HTTP ' + res.status + ' từ Pollinations'); }
+    var blob = await res.blob();
+    var mime = blob.type || 'image/jpeg';
+    var dataUrl = await new Promise(function(resolve, reject){
+      var reader = new FileReader();
+      reader.onload = function(){ resolve(String(reader.result)); };
+      reader.onerror = function(){ reject(new Error('Không đọc được ảnh trả về từ Pollinations')); };
+      reader.readAsDataURL(blob);
+    });
+    return { dataUrl: dataUrl, mime: mime };
+  }
+  // Prompt dạng văn bản thuần cho Pollinations — không gửi kèm ảnh nhân vật (Pollinations không nhận ảnh tham chiếu base64),
+  // nên chỉ mô tả nhân vật bằng chữ, độ đồng nhất ngoại hình sẽ kém chính xác hơn so với dùng Gemini.
+  function buildTextOnlyPrompt(styleText, charList, settingText, editText){
+    var parts = [];
+    if(styleText) parts.push('Phong cách chung: ' + styleText);
+    if(charList && charList.length){
+      parts.push('Nhân vật xuất hiện trong cảnh (mô tả để giữ đồng nhất): ' + charList.map(function(c){
+        return (c.name || 'nhân vật') + (c.description ? (' — ' + c.description) : '');
+      }).join('; '));
+    }
+    parts.push('Bối cảnh: ' + settingText);
+    if(editText) parts.push('Yêu cầu chỉnh sửa thêm: ' + editText);
+    return 'Minh hoạ điện ảnh chất lượng cao, không chữ, không watermark, không chú thích. ' + parts.join('. ');
+  }
 
   function dataUrlToInline(dataUrl){
     var m = /^data:([^;]+);base64,(.*)$/.exec(dataUrl || '');
@@ -1116,35 +1184,70 @@
     triggerDownload(dataUrlToBlob(state.voice.audio.dataUrl), slugify(state.projectName) + '-giong-doc.wav');
   });
 
+  // ---- nghe thử nhanh từng giọng (đoạn mẫu ~100 ký tự, không lưu vào dự án) ----
+  var VOICE_PREVIEW_TEXT = 'Xin chào, đây là giọng đọc mẫu để bạn tham khảo trước khi chọn cho toàn bộ kịch bản của mình.';
+  var btnPreviewVoice = document.getElementById('btnPreviewVoice');
+  var voicePreviewAudioEl = document.getElementById('voicePreviewAudioEl');
+  var voicePreviewErrorHint = document.getElementById('voicePreviewErrorHint');
+  btnPreviewVoice.addEventListener('click', async function(){
+    var voiceName = document.getElementById('voiceNameSelect').value;
+    if(!getApiKey()){ toast('Chưa có API key Gemini — bấm 🔑 để nhập'); openKeyModal(); return; }
+    voicePreviewErrorHint.style.display = 'none';
+    btnPreviewVoice.disabled = true;
+    var originalLabel = btnPreviewVoice.textContent;
+    btnPreviewVoice.textContent = '⏳ Đang tạo mẫu…';
+    try {
+      var result = await callGeminiTTS(VOICE_PREVIEW_TEXT, voiceName);
+      voicePreviewAudioEl.src = result.dataUrl;
+      voicePreviewAudioEl.style.display = 'block';
+      voicePreviewAudioEl.play().catch(function(){});
+    } catch(err){
+      console.error(err);
+      voicePreviewErrorHint.textContent = 'Lỗi tạo mẫu nghe thử: ' + ((err && err.message) || 'không xác định');
+      voicePreviewErrorHint.style.display = 'block';
+      toast('Lỗi tạo mẫu nghe thử giọng ' + voiceName, true);
+    }
+    btnPreviewVoice.disabled = false;
+    btnPreviewVoice.textContent = originalLabel;
+  });
+
   async function generateSceneImage(sceneId, opts){
     opts = opts || {};
     var s = state.scenes.find(function(x){ return x.id === sceneId; });
     if(!s) return;
     var settingText = (s.setting && s.setting.trim()) || (s.promptName && s.promptName.trim()) || (s.vi && s.vi.trim()) || '';
     if(!settingText && !opts.editPrompt){ toast('Hãy nhập Mô tả bối cảnh (hoặc Tên Prompt / Tiếng Việt) trước khi tạo ảnh'); return; }
-    if(!getApiKey()){ toast('Chưa có API key Gemini — bấm 🔑 để nhập'); openKeyModal(); return; }
+    var usePollinations = state.imageProvider === 'pollinations';
+    if(!usePollinations && !getApiKey()){ toast('Chưa có API key Gemini — bấm 🔑 để nhập'); openKeyModal(); return; }
 
     s.status = 'loading'; renderScenes(); if(lightboxState.open && lightboxState.sceneId === sceneId) renderLightbox();
 
     try {
-      var instruction = 'Vẽ một hình minh hoạ điện ảnh, chất lượng cao cho phân cảnh sau. CHỈ vẽ hình ảnh, tuyệt đối không thêm chữ, watermark hay chú thích nào trong ảnh.';
-      var styleText = (state.stylePrompt || '').trim();
-      var finalPrompt = (styleText ? ('Phong cách chung cần đồng nhất: ' + styleText + '\n') : '') + 'Mô tả bối cảnh phân cảnh: ' + settingText;
-      var parts = [{ text: instruction + '\n\n' + finalPrompt }];
-      parts = parts.concat(buildCharacterParts(s.characterIds));
-      if(s.characterIds.length === 0){
-        var idx = state.scenes.findIndex(function(x){ return x.id === sceneId; });
-        var prev = state.scenes[idx - 1];
-        if(prev && prev.image){
-          parts.push({ text: 'Đây là ảnh của phân cảnh liền trước để tham khảo, giữ đồng nhất phong cách vẽ; nếu mô tả bối cảnh trùng với phân cảnh này thì vẽ đúng cùng khung cảnh, cảnh vật:' });
-          parts.push({ inline_data: dataUrlToInline(prev.image.dataUrl) });
+      var result;
+      if(usePollinations){
+        var chars = s.characterIds.map(function(id){ return state.characters.find(function(c){ return c.id === id; }); }).filter(Boolean);
+        var textPrompt = buildTextOnlyPrompt((state.stylePrompt || '').trim(), chars, settingText, opts.editPrompt);
+        result = await callPollinationsImage(textPrompt);
+      } else {
+        var instruction = 'Vẽ một hình minh hoạ điện ảnh, chất lượng cao cho phân cảnh sau. CHỈ vẽ hình ảnh, tuyệt đối không thêm chữ, watermark hay chú thích nào trong ảnh.';
+        var styleText = (state.stylePrompt || '').trim();
+        var finalPrompt = (styleText ? ('Phong cách chung cần đồng nhất: ' + styleText + '\n') : '') + 'Mô tả bối cảnh phân cảnh: ' + settingText;
+        var parts = [{ text: instruction + '\n\n' + finalPrompt }];
+        parts = parts.concat(buildCharacterParts(s.characterIds));
+        if(s.characterIds.length === 0){
+          var idx = state.scenes.findIndex(function(x){ return x.id === sceneId; });
+          var prev = state.scenes[idx - 1];
+          if(prev && prev.image){
+            parts.push({ text: 'Đây là ảnh của phân cảnh liền trước để tham khảo, giữ đồng nhất phong cách vẽ; nếu mô tả bối cảnh trùng với phân cảnh này thì vẽ đúng cùng khung cảnh, cảnh vật:' });
+            parts.push({ inline_data: dataUrlToInline(prev.image.dataUrl) });
+          }
         }
+        if(opts.editPrompt && s.image){
+          parts.push({ text: 'Chỉnh sửa ảnh vừa tạo theo yêu cầu sau, giữ nguyên bố cục và nhân vật trừ khi được yêu cầu đổi khác: ' + opts.editPrompt });
+          parts.push({ inline_data: dataUrlToInline(s.image.dataUrl) });
+        }
+        result = await callGemini(parts);
       }
-      if(opts.editPrompt && s.image){
-        parts.push({ text: 'Chỉnh sửa ảnh vừa tạo theo yêu cầu sau, giữ nguyên bố cục và nhân vật trừ khi được yêu cầu đổi khác: ' + opts.editPrompt });
-        parts.push({ inline_data: dataUrlToInline(s.image.dataUrl) });
-      }
-      var result = await callGemini(parts);
       s.image = result; s.status = 'done'; s.errorMsg = '';
     } catch(err){
       console.error(err);
@@ -1155,12 +1258,35 @@
     if(lightboxState.open && lightboxState.sceneId === sceneId) renderLightbox();
   }
 
+  var BULK_GEN_CONCURRENCY = 4; // số ảnh tạo song song cùng lúc khi bấm "Tạo ảnh hàng loạt" với Gemini — tăng lên nếu API key có hạn mức cao, giảm xuống nếu bị lỗi quá tải/rate limit
   document.getElementById('btnGenAll').addEventListener('click', async function(){
     if(!state.scenes.length){ toast('Chưa có phân đoạn nào'); return; }
-    if(!getApiKey()){ toast('Chưa có API key Gemini — bấm 🔑 để nhập'); openKeyModal(); return; }
-    this.disabled = true;
-    for(var i = 0; i < state.scenes.length; i++){ await generateSceneImage(state.scenes[i].id); }
-    this.disabled = false;
+    var usePollinations = state.imageProvider === 'pollinations';
+    if(!usePollinations && !getApiKey()){ toast('Chưa có API key Gemini — bấm 🔑 để nhập'); openKeyModal(); return; }
+    var btnEl = this;
+    var ids = state.scenes.map(function(s){ return s.id; });
+    var total = ids.length, doneCount = 0, nextIdx = 0;
+    // Pollinations miễn phí có giới hạn lượt/giây khá thấp — chạy tuần tự (1 luồng) kèm chờ giữa các lượt để không bị chặn (429),
+    // Gemini trả phí có hạn mức cao hơn nên chạy song song nhiều luồng cho nhanh.
+    var pollinationsDelayMs = getPollinationsToken() ? 5200 : 15200;
+    btnEl.disabled = true;
+    function updateProgress(){ btnEl.textContent = '✨ Đang tạo… (' + doneCount + '/' + total + ')'; }
+    updateProgress();
+    async function worker(){
+      while(nextIdx < ids.length){
+        var myId = ids[nextIdx++];
+        await generateSceneImage(myId);
+        doneCount++;
+        updateProgress();
+        if(usePollinations && nextIdx < ids.length){ await new Promise(function(r){ setTimeout(r, pollinationsDelayMs); }); }
+      }
+    }
+    var workerCount = usePollinations ? 1 : Math.min(BULK_GEN_CONCURRENCY, total);
+    var workers = [];
+    for(var w = 0; w < workerCount; w++){ workers.push(worker()); }
+    await Promise.all(workers);
+    btnEl.disabled = false;
+    btnEl.textContent = '✨ Tạo ảnh hàng loạt';
     toast('Đã tạo xong toàn bộ ảnh trong danh sách phân cảnh');
   });
 
@@ -1257,8 +1383,23 @@
     renderScenes();
     renderVoice();
     renderGallery();
+    renderImageProviderSelects();
     setActiveTab(state.activeTab, true);
   }
+
+  function renderImageProviderSelects(){
+    var a = document.getElementById('sceneProviderSelect');
+    var b = document.getElementById('galleryProviderSelect');
+    if(a) a.value = state.imageProvider;
+    if(b) b.value = state.imageProvider;
+  }
+  document.querySelectorAll('.provider-select').forEach(function(sel){
+    sel.addEventListener('change', function(){
+      state.imageProvider = this.value === 'pollinations' ? 'pollinations' : 'gemini';
+      renderImageProviderSelects();
+      scheduleHistoryPush();
+    });
+  });
 
   var tabButtons = document.querySelectorAll('.tab-btn');
   var panels = document.querySelectorAll('.panel');
@@ -1365,6 +1506,7 @@
         state.gallery = Array.isArray(proj.gallery) ? proj.gallery.map(function(g){
           return { id: g.id || uid('g'), image: g.image || null, status: g.image ? 'done' : 'idle', errorMsg: "" };
         }) : [];
+        state.imageProvider = proj.imageProvider === 'pollinations' ? 'pollinations' : 'gemini';
         state.activeTab = proj.activeTab || "characters";
         renderState();
         history = [snapshot()]; historyIndex = 0;
@@ -1380,6 +1522,7 @@
   // ---- API key modal ----
   var apiKeyOverlay = document.getElementById('apiKeyOverlay');
   var geminiKeyInput = document.getElementById('geminiKeyInput');
+  var pollinationsTokenInput = document.getElementById('pollinationsTokenInput');
   var keyStatus = document.getElementById('keyStatus');
   var keyStatusText = document.getElementById('keyStatusText');
   function refreshKeyStatus(){
@@ -1388,6 +1531,7 @@
     keyStatus.classList.toggle('set', has);
     keyStatusText.textContent = has ? 'Đã có API key Gemini — sẵn sàng tạo ảnh.' : 'Chưa có API key — cần nhập để dùng chức năng tạo ảnh.';
     geminiKeyInput.value = val;
+    pollinationsTokenInput.value = getPollinationsToken();
   }
   function openKeyModal(){ apiKeyOverlay.classList.add('open'); refreshKeyStatus(); geminiKeyInput.focus(); }
   function closeKeyModal(){ apiKeyOverlay.classList.remove('open'); }
@@ -1395,12 +1539,18 @@
   document.getElementById('btnCancelKey').addEventListener('click', closeKeyModal);
   apiKeyOverlay.addEventListener('click', function(e){ if(e.target === apiKeyOverlay) closeKeyModal(); });
   document.getElementById('btnSaveKey').addEventListener('click', function(){
-    try { localStorage.setItem(KEY_STORAGE, geminiKeyInput.value.trim()); } catch(e){}
-    refreshKeyStatus(); toast('Đã lưu API key'); closeKeyModal();
+    try {
+      localStorage.setItem(KEY_STORAGE, geminiKeyInput.value.trim());
+      localStorage.setItem(POLLINATIONS_TOKEN_STORAGE, pollinationsTokenInput.value.trim());
+    } catch(e){}
+    refreshKeyStatus(); toast('Đã lưu'); closeKeyModal();
   });
   document.getElementById('btnClearKey').addEventListener('click', function(){
-    try { localStorage.removeItem(KEY_STORAGE); } catch(e){}
-    refreshKeyStatus(); toast('Đã xoá API key');
+    try { localStorage.removeItem(KEY_STORAGE); localStorage.removeItem(POLLINATIONS_TOKEN_STORAGE); } catch(e){}
+    refreshKeyStatus(); toast('Đã xoá key/token');
+  });
+  document.getElementById('togglePollinationsVisibility').addEventListener('click', function(){
+    pollinationsTokenInput.type = pollinationsTokenInput.type === 'password' ? 'text' : 'password';
   });
   document.getElementById('toggleKeyVisibility').addEventListener('click', function(){
     geminiKeyInput.type = geminiKeyInput.type === 'password' ? 'text' : 'password';
@@ -1484,17 +1634,24 @@
     if(!g) return;
     var promptText = (state.tabs.image || '').trim();
     if(!promptText && !opts.editPrompt){ toast('Hãy nhập mô tả hình ảnh muốn tạo trước'); return; }
-    if(!getApiKey()){ toast('Chưa có API key Gemini — bấm 🔑 để nhập'); openKeyModal(); return; }
+    var usePollinations = state.imageProvider === 'pollinations';
+    if(!usePollinations && !getApiKey()){ toast('Chưa có API key Gemini — bấm 🔑 để nhập'); openKeyModal(); return; }
     g.status = 'loading'; renderGallery();
     if(galleryLightboxState.open && galleryLightboxState.id === gId) renderGalleryLightbox();
     try {
-      var instruction = 'Vẽ một hình minh hoạ chất lượng cao theo mô tả sau. CHỈ vẽ hình ảnh, tuyệt đối không thêm chữ, watermark hay chú thích nào trong ảnh.';
-      var parts = [{ text: instruction + '\n\n' + promptText }];
-      if(opts.editPrompt && g.image){
-        parts.push({ text: 'Chỉnh sửa ảnh vừa tạo theo yêu cầu sau, giữ nguyên bố cục trừ khi được yêu cầu đổi khác: ' + opts.editPrompt });
-        parts.push({ inline_data: dataUrlToInline(g.image.dataUrl) });
+      var result;
+      if(usePollinations){
+        var textPrompt2 = 'Minh hoạ chất lượng cao, không chữ, không watermark, không chú thích. ' + promptText + (opts.editPrompt ? ('. Yêu cầu chỉnh sửa thêm: ' + opts.editPrompt) : '');
+        result = await callPollinationsImage(textPrompt2);
+      } else {
+        var instruction = 'Vẽ một hình minh hoạ chất lượng cao theo mô tả sau. CHỈ vẽ hình ảnh, tuyệt đối không thêm chữ, watermark hay chú thích nào trong ảnh.';
+        var parts = [{ text: instruction + '\n\n' + promptText }];
+        if(opts.editPrompt && g.image){
+          parts.push({ text: 'Chỉnh sửa ảnh vừa tạo theo yêu cầu sau, giữ nguyên bố cục trừ khi được yêu cầu đổi khác: ' + opts.editPrompt });
+          parts.push({ inline_data: dataUrlToInline(g.image.dataUrl) });
+        }
+        result = await callGemini(parts);
       }
-      var result = await callGemini(parts);
       g.image = result; g.status = 'done'; g.errorMsg = '';
     } catch(err){
       console.error(err);
@@ -1517,7 +1674,7 @@
   document.getElementById('btnGenGalleryImage').addEventListener('click', function(){
     var promptText = (state.tabs.image || '').trim();
     if(!promptText){ toast('Hãy nhập mô tả hình ảnh muốn tạo trước'); return; }
-    if(!getApiKey()){ toast('Chưa có API key Gemini — bấm 🔑 để nhập'); openKeyModal(); return; }
+    if(state.imageProvider !== 'pollinations' && !getApiKey()){ toast('Chưa có API key Gemini — bấm 🔑 để nhập'); openKeyModal(); return; }
     var item = newGalleryItem();
     state.gallery.push(item);
     renderGallery(); scheduleHistoryPush();
