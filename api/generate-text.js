@@ -1,5 +1,5 @@
 // Proxy Gemini text — dùng để AI tự viết prompt "Mô tả bối cảnh" cho từng phân cảnh.
-const GEMINI_TEXT_MODEL = process.env.GEMINI_TEXT_MODEL || 'gemini-2.5-flash';
+const GEMINI_TEXT_MODEL = process.env.GEMINI_TEXT_MODEL || 'gemini-3.6-flash';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
